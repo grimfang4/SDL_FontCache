@@ -229,7 +229,7 @@ Uint16 FC_GetMaxWidth(FC_Font* font);
 SDL_Color FC_GetDefaultColor(FC_Font* font);
 
 Uint8 FC_InRect(float x, float y, FC_Rect input_rect);
-Uint16 FC_GetPositionFromOffset(FC_Font* font, int column_width, FC_AlignEnum align, float x, float y, const char* formatted_text, ...);
+Uint16 FC_GetPositionFromOffset(FC_Font* font, float x, float y, int column_width, FC_AlignEnum align, const char* formatted_text, ...);
 
 // Setters
 

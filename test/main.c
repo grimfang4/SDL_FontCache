@@ -193,7 +193,7 @@ void loop_drawSomeText()
 	        {
 	            if(FC_InRect(event.button.x, event.button.y, input_rect))
                 {
-                    input_position = FC_GetPositionFromOffset(font, input_rect.w, FC_ALIGN_LEFT, event.button.x - input_rect.x, event.button.y - input_rect.y, "%s", input_text);
+                    input_position = FC_GetPositionFromOffset(font, event.button.x - input_rect.x, event.button.y - input_rect.y, input_rect.w, FC_ALIGN_LEFT, "%s", input_text);
                 }
 	        }
 	    }

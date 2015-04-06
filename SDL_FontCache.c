@@ -2075,7 +2075,7 @@ Uint8 FC_InRect(float x, float y, FC_Rect input_rect)
 }
 
 // TODO: Make it work with alignment
-Uint16 FC_GetPositionFromOffset(FC_Font* font, int column_width, FC_AlignEnum align, float x, float y, const char* formatted_text, ...)
+Uint16 FC_GetPositionFromOffset(FC_Font* font, float x, float y, int column_width, FC_AlignEnum align, const char* formatted_text, ...)
 {
     FC_StringList *ls, *iter;
     Uint8 done = 0;
