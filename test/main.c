@@ -108,6 +108,8 @@ void loop_drawSomeText()
     char input_text[2048];
     sprintf(input_text, "Edit this text.");
     int input_position = U8_strlen(input_text);
+    FC_Rect input_rect;
+    
     
     float target_w, target_h;
     #ifdef SDL_GPU_VERSION_MAJOR
@@ -138,6 +140,8 @@ void loop_drawSomeText()
     int scroll = 0;
     
     const Uint8* keystates = SDL_GetKeyboardState(NULL);
+    
+    input_rect = FC_MakeRect(rightHalf.x, 175, rightHalf.w, 500);
     
     SDL_StartTextInput();
     
@@ -185,6 +189,13 @@ void loop_drawSomeText()
 	            if(U8_strinsert(input_text, input_position, event.text.text, 2048))
                     input_position += U8_strlen(event.text.text);
 	        }
+	        else if(event.type == SDL_MOUSEBUTTONDOWN)
+	        {
+	            if(FC_InRect(event.button.x, event.button.y, input_rect))
+                {
+                    input_position = FC_GetPositionFromOffset(font, input_rect.w, FC_ALIGN_LEFT, event.button.x - input_rect.x, event.button.y - input_rect.y, "%s", input_text);
+                }
+	        }
 	    }
 	    
 	    if(keystates[SDL_SCANCODE_UP])
@@ -205,12 +216,13 @@ void loop_drawSomeText()
 	    
 	    FC_DrawColor(font, target, rightHalf.x, 65, FC_MakeColor(128 + 127*sin(time), 128 + 127*sin(time/2), 128 + 127*sin(time/4), 128 + 127*sin(time/8)), "Dynamic colored text");
 	    FC_Draw(font, target, rightHalf.x, 85, "Multi\nline\ntext");
-	    FC_DrawBox(font, target, FC_MakeRect(rightHalf.x, 175, rightHalf.w, 500), "%s", input_text);
-	    draw_rect(FC_MakeRect(rightHalf.x, 175 + FC_GetLineHeight(font), FC_GetWidth(font, "%s", input_text), 2), black);
 	    
-	    FC_Rect input_cursor_pos = FC_GetCharacterOffset(font, input_position, rightHalf.w, "%s", input_text);
+	    FC_DrawBox(font, target, input_rect, "%s", input_text);
+	    draw_rect(FC_MakeRect(input_rect.x, input_rect.y + FC_GetLineHeight(font), FC_GetWidth(font, "%s", input_text), 2), black);
+	    
+	    FC_Rect input_cursor_pos = FC_GetCharacterOffset(font, input_position, input_rect.w, "%s", input_text);
 	    if(SDL_GetTicks()%1000 < 500)
-            fill_rect(FC_MakeRect(rightHalf.x + input_cursor_pos.x, 175 + input_cursor_pos.y, input_cursor_pos.w, input_cursor_pos.h), FC_MakeColor(0, 0, 0, 255));
+            fill_rect(FC_MakeRect(input_rect.x + input_cursor_pos.x, input_rect.y + input_cursor_pos.y, input_cursor_pos.w, input_cursor_pos.h), FC_MakeColor(0, 0, 0, 255));
 	    
         FC_DrawColumn(font, target, 0, 50, 200, "column align LEFT\nColumn text wraps at the width of the column and has no maximum height.");
         FC_DrawColumnAlign(font, target, 100, 250, 200, FC_ALIGN_CENTER, "column align CENTER\nColumn text wraps at the width of the column and has no maximum height.");

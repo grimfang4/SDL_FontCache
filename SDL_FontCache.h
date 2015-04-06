@@ -75,6 +75,13 @@ typedef struct FC_Effect
 typedef struct FC_Font FC_Font;
 
 
+typedef struct FC_GlyphData
+{
+    SDL_Rect rect;
+    int cache_level;
+    
+} FC_GlyphData;
+
 
 
 #ifdef FC_USE_GPU
@@ -100,6 +107,11 @@ SDL_Color FC_MakeColor(Uint8 r, Uint8 g, Uint8 b, Uint8 a);
 
 FC_Effect FC_MakeEffect(FC_AlignEnum alignment, FC_Scale scale, SDL_Color color);
 
+FC_GlyphData FC_MakeGlyphData(int cache_level, Sint16 x, Sint16 y, Uint16 w, Uint16 h);
+
+
+
+// Font object
 
 FC_Font* FC_CreateFont(void);
 
@@ -150,8 +162,7 @@ int U8_strlen(const char* string);
 int U8_charsize(const char* c);
 
 /*! Returns a pointer to the next UTF-8 character. */
-char* U8_next(char* string);
-const char* U8_nextc(const char* string);
+const char* U8_next(const char* string);
 
 /*! Inserts a UTF-8 string into 'string' at the given position.  Use a position of -1 to append.  Returns 0 when unable to insert the string. */
 int U8_strinsert(char* string, int position, const char* source, int max_bytes);
@@ -160,12 +171,35 @@ int U8_strinsert(char* string, int position, const char* source, int max_bytes);
 void U8_strdel(char* string, int position);
 
 
+// Internal settings
+
 /*! Changes the size of the internal buffer which is used for unpacking variadic text data. */
 void FC_SetBufferSize(unsigned int size);
 void FC_SetRenderCallback(FC_Rect (*callback)(FC_Image* src, FC_Rect* srcrect, FC_Target* dest, float x, float y, float xscale, float yscale));
 FC_Rect FC_DefaultRenderCallback(FC_Image* src, FC_Rect* srcrect, FC_Target* dest, float x, float y, float xscale, float yscale);
 
-// Drawing
+
+// Custom caching
+
+/*! Returns the number of cache levels that are active. */
+int FC_GetNumCacheLevels(FC_Font* font);
+
+/*! Returns the cache source texture at the given cache level. */
+SDL_Texture* FC_GetGlyphCacheLevel(FC_Font* font, int cache_level);
+
+// TODO: Specify ownership of the texture (should be shareable)
+/*! Sets a cache source texture for rendering.  New cache levels must be sequential. */
+Uint8 FC_SetGlyphCacheLevel(FC_Font* font, int cache_level, SDL_Texture* cache_texture);
+
+/*! Stores the glyph data for the given codepoint in 'result'.  Returns 0 if the codepoint was not found in the cache. */
+Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint);
+
+/*! Sets the glyph data for the given codepoint.  Duplicates are not checked.  Returns a pointer to the stored data. */
+FC_GlyphData* FC_SetGlyphData(FC_Font* font, Uint32 codepoint, FC_GlyphData glyph_data);
+
+
+// Rendering
+
 SDL_Rect FC_Draw(FC_Font* font, SDL_Renderer* dest, float x, float y, const char* formatted_text, ...);
 SDL_Rect FC_DrawAlign(FC_Font* font, SDL_Renderer* dest, float x, float y, FC_AlignEnum align, const char* formatted_text, ...);
 SDL_Rect FC_DrawScale(FC_Font* font, SDL_Renderer* dest, float x, float y, FC_Scale scale, const char* formatted_text, ...);
@@ -177,7 +211,9 @@ SDL_Rect FC_DrawBoxAlign(FC_Font* font, SDL_Renderer* dest, SDL_Rect box, FC_Ali
 SDL_Rect FC_DrawColumn(FC_Font* font, SDL_Renderer* dest, float x, float y, Uint16 width, const char* formatted_text, ...);
 SDL_Rect FC_DrawColumnAlign(FC_Font* font, SDL_Renderer* dest, float x, float y, Uint16 width, FC_AlignEnum align, const char* formatted_text, ...);
 
+
 // Getters
+
 Uint16 FC_GetLineHeight(FC_Font* font);
 Uint16 FC_GetHeight(FC_Font* font, const char* formatted_text, ...);
 Uint16 FC_GetWidth(FC_Font* font, const char* formatted_text, ...);
@@ -192,7 +228,11 @@ int FC_GetLineSpacing(FC_Font* font);
 Uint16 FC_GetMaxWidth(FC_Font* font);
 SDL_Color FC_GetDefaultColor(FC_Font* font);
 
+Uint8 FC_InRect(float x, float y, FC_Rect input_rect);
+Uint16 FC_GetPositionFromOffset(FC_Font* font, int column_width, FC_AlignEnum align, float x, float y, const char* formatted_text, ...);
+
 // Setters
+
 void FC_SetSpacing(FC_Font* font, int LetterSpacing);
 void FC_SetLineSpacing(FC_Font* font, int LineSpacing);
 void FC_SetDefaultColor(FC_Font* font, SDL_Color color);
