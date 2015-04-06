@@ -1,0 +1,23 @@
+
+# Bugs  
+    Why do added unicode glyphs look bigger/bold?  
+	Implement clipping with SDL_Renderer.  
+    Why is the font line height so big???  
+		
+# Features  
+    Make font->ignore_newlines so you can render lines with newlines in them without going onto extra lines.  
+    Add functions to get/set glyph data  
+        Is this enough to make it generally useful?  
+        Can I implement a bitmap font thing on top of it?  
+        Needs functions to:  
+            Set texture cache (e.g. from custom bitmap)  
+            Set glyph data (could just be the source which is called as needed)  
+            Set glyph data source and texture cache generator  
+            Possibly a pre-loader for certain glyphs (e.g. FC_SetLoadingString() with ASCII as the default string)  
+    Functions for manipulating UTF-8 text  
+        U8_stroffset(iter->value, i)  // convert pos to offset  
+        U8_strreplace(s, p, c)  // Replaces the character there  
+           Is string overwrite more useful?  
+        U8_stralloc(n) // First byte is '\0'  
+    Scaled box/column text  
+	Dynamic kerning calculation stored in 2D codepoint array (render "XY" and compare to width of "X"+"Y") if TTF_GetFontKerning(ttf) is true.  Render without kerning lookup if that is off, too.  Could dig into FreeType for getting this info more directly.  
