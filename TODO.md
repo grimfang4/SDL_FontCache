@@ -18,6 +18,5 @@
         U8_stroffset(iter->value, i)  // convert pos to offset  
         U8_strreplace(s, p, c)  // Replaces the character there  
            Is string overwrite more useful?  
-        U8_stralloc(n) // First byte is '\0'  
     Scaled box/column text  
 	Dynamic kerning calculation stored in 2D codepoint array (render "XY" and compare to width of "X"+"Y") if TTF_GetFontKerning(ttf) is true.  Render without kerning lookup if that is off, too.  Could dig into FreeType for getting this info more directly.  

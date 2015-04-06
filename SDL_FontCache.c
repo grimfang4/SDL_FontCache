@@ -312,6 +312,24 @@ static_inline SDL_Surface* FC_CreateSurface32(Uint32 width, Uint32 height)
     #endif
 }
 
+
+char* U8_alloc(unsigned int size)
+{
+    char* result;
+    if(size == 0)
+        return NULL;
+    
+    result = (char*)malloc(size);
+    result[0] = '\0';
+
+    return result;
+}
+
+void U8_free(char* string)
+{
+    free(string);
+}
+
 char* U8_strdup(const char* string)
 {
     char* result;
@@ -324,31 +342,6 @@ char* U8_strdup(const char* string)
     return result;
 }
 
-void U8_strdel(char* string, int position)
-{
-    if(string == NULL || position < 0)
-        return;
-    
-    while(*string != '\0')
-    {
-        if(position == 0)
-        {
-            int chars_to_erase = U8_charsize(string);
-            memmove(string, string + chars_to_erase, chars_to_erase);
-            break;
-        }
-        
-        FC_GetCodepointFromUTF8((const char**)&string, 1);
-        ++string;
-        --position;
-    }
-}
-
-void U8_free(char* string)
-{
-    free(string);
-}
-
 int U8_strlen(const char* string)
 {
     int length = 0;
@@ -357,8 +350,7 @@ int U8_strlen(const char* string)
     
     while(*string != '\0')
     {
-        FC_GetCodepointFromUTF8(&string, 1);
-        ++string;
+        string = U8_nextc(string);
         ++length;
     }
     
@@ -381,6 +373,16 @@ int U8_charsize(const char* c)
     return 1;
 }
 
+char* U8_next(char* string)
+{
+    return string + U8_charsize(string);
+}
+
+const char* U8_nextc(const char* string)
+{
+    return string + U8_charsize(string);
+}
+
 int U8_strinsert(char* string, int position, const char* source, int max_bytes)
 {
     int pos_bytes;
@@ -398,8 +400,7 @@ int U8_strinsert(char* string, int position, const char* source, int max_bytes)
     pos_bytes = 0;
     while(*string != '\0' && pos_bytes < position)
     {
-        FC_GetCodepointFromUTF8(&string, 1);
-        ++string;
+        string = U8_next(string);
         ++pos_bytes;
     }
     
@@ -410,6 +411,26 @@ int U8_strinsert(char* string, int position, const char* source, int max_bytes)
     memcpy(string, source, add_len);
     
     return 1;
+}
+
+void U8_strdel(char* string, int position)
+{
+    if(string == NULL || position < 0)
+        return;
+    
+    while(*string != '\0')
+    {
+        if(position == 0)
+        {
+            int chars_to_erase = U8_charsize(string);
+            int remaining_bytes = strlen(string) + 1;
+            memmove(string, string + chars_to_erase, remaining_bytes);
+            break;
+        }
+        
+        string = U8_next(string);
+        --position;
+    }
 }
 
 
@@ -1762,21 +1783,19 @@ FC_Rect FC_GetCharacterOffset(FC_Font* font, Uint16 position_index, int column_w
         int i = 0;
         
         ++num_lines;
-        for(line = iter->value; line != NULL && *line != '\0'; ++line)
+        for(line = iter->value; line != NULL && *line != '\0'; line = U8_next(line))
         {
             ++i;
             --position_index;
             if(position_index == 0)
             {
                 // FIXME: Doesn't handle box-wrapped newlines correctly
-                FC_GetCodepointFromUTF8((const char**)&line, 1);  // Just to skip multibyte characters
-                ++line;
+                line = U8_next(line);
                 line[0] = '\0';
                 result.x = FC_GetWidth(font, "%s", iter->value);
                 done = 1;
                 break;
             }
-            FC_GetCodepointFromUTF8((const char**)&line, 1);  // Just to skip multibyte characters
         }
         if(done)
             break;
