@@ -1,8 +1,7 @@
 
 # Bugs  
-    Why do added unicode glyphs look bigger/bold?  
 	Implement clipping with SDL_Renderer.  
-    Why is the font line height so big???  
+    Why is the font line height so big?  
 		
 # Features  
     Make font->ignore_newlines so you can render lines with newlines in them without going onto extra lines.  
@@ -13,7 +12,6 @@
             Set texture cache (e.g. from custom bitmap)  
             Set glyph data (could just be the source which is called as needed)  
             Set glyph data source and texture cache generator  
-            Possibly a pre-loader for certain glyphs (e.g. FC_SetLoadingString() with ASCII as the default string)  
     Functions for manipulating UTF-8 text  
         U8_stroffset(iter->value, i)  // convert pos to offset  
         U8_strreplace(s, p, c)  // Replaces the character there  

@@ -784,7 +784,7 @@ static void FC_Init(FC_Font* font)
     font->glyph_cache_count = 0;
     font->glyph_cache = (SDL_Texture**)malloc(font->glyph_cache_size * sizeof(SDL_Texture*));
 
-    font->loading_string = U8_strdup(FC_GetStringASCII_Latin1());
+    font->loading_string = U8_strdup(FC_GetStringASCII());
 
     if(fc_buffer == NULL)
         fc_buffer = (char*)malloc(1024);
@@ -901,8 +901,8 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
     
     font->ttf_source = ttf;
     
-    font->height = TTF_FontLineSkip(ttf);
-    //font->height = TTF_FontHeight(ttf);
+    //font->line_height = TTF_FontLineSkip(ttf);
+    font->height = TTF_FontHeight(ttf);
     font->ascent = TTF_FontAscent(ttf);
     font->descent = -TTF_FontDescent(ttf);
     
@@ -1186,7 +1186,7 @@ Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
             GPU_SetImageFilter(img, GPU_FILTER_NEAREST);
             SDL_FreeSurface(surf);
             
-            SDL_Rect destrect = font->last_glyph;
+            SDL_Rect destrect = e->rect;
             GPU_Blit(img, NULL, dest, destrect.x + destrect.w/2, destrect.y + destrect.h/2);
             GPU_FreeImage(img);
             
@@ -1197,8 +1197,8 @@ Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
             SDL_Texture* img = SDL_CreateTextureFromSurface(font->renderer, surf);
             SDL_FreeSurface(surf);
             
-            SDL_Rect destrect = font->last_glyph.rect;
-            SDL_SetRenderTarget(font->renderer, FC_GetGlyphCacheLevel(font, font->last_glyph.cache_level));
+            SDL_Rect destrect = e->rect;
+            SDL_SetRenderTarget(font->renderer, FC_GetGlyphCacheLevel(font, e->cache_level));
             SDL_RenderCopy(font->renderer, img, NULL, &destrect);
             SDL_SetRenderTarget(font->renderer, NULL);
             SDL_DestroyTexture(img);

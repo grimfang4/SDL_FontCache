@@ -211,7 +211,7 @@ void loop_drawSomeText()
             scroll++;
 	    
 	    
-	    if(mode == 0)
+	    if(mode == 0 || mode == 1)
         {
             fill_rect(leftHalf, white);
             fill_rect(rightHalf, gray);
@@ -257,7 +257,8 @@ void loop_drawSomeText()
             
             unset_clip();
         }
-        else if(mode == 1)
+        
+        if(mode == 1)
         {
             fill_rect(leftHalf, black);
             fill_rect(rightHalf, black);
