@@ -20,7 +20,6 @@
 					<Add directory=".." />
 				</Compiler>
 				<Linker>
-					<Add option="-mwindows" />
 					<Add library="mingw32" />
 					<Add library="SDL2main" />
 					<Add library="SDL2" />

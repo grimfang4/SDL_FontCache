@@ -127,6 +127,15 @@ void FC_FreeFont(FC_Font* font);
 
 
 
+// Built-in loading strings
+
+const char* FC_GetStringASCII(void);
+
+const char* FC_GetStringLatin1(void);
+
+const char* FC_GetStringASCII_Latin1(void);
+
+
 // UTF-8 to SDL_FontCache codepoint conversion
 
 /*!
@@ -144,7 +153,7 @@ Parses the given codepoint and stores the UTF-8 bytes in 'result'.  The result i
 void FC_GetUTF8FromCodepoint(char* result, Uint32 codepoint);
 
 
-// String operations
+// UTF-8 string operations
 
 /*! Allocates a new string of 'size' bytes that is already NULL-terminated.  The NULL byte counts toward the size limit, as usual.  Returns NULL if size is 0. */
 char* U8_alloc(unsigned int size);
@@ -161,6 +170,9 @@ int U8_strlen(const char* string);
 /*! Returns the number of bytes in the UTF-8 multibyte character pointed at by c. */
 int U8_charsize(const char* c);
 
+/*! Copies the source multibyte character into the given buffer without overrunning it.  Returns 0 on failure. */
+int U8_charcpy(char* buffer, const char* source, int buffer_size);
+
 /*! Returns a pointer to the next UTF-8 character. */
 const char* U8_next(const char* string);
 
@@ -173,9 +185,14 @@ void U8_strdel(char* string, int position);
 
 // Internal settings
 
-/*! Changes the size of the internal buffer which is used for unpacking variadic text data. */
+/*! Sets the string from which to load the initial glyphs.  Use this if you need upfront loading for any reason (such as lack of render-target support). */
+void FC_SetLoadingString(FC_Font* font, const char* string);
+
+/*! Changes the size of the internal buffer which is used for unpacking variadic text data.  This buffer is shared by all FC_Fonts. */
 void FC_SetBufferSize(unsigned int size);
+
 void FC_SetRenderCallback(FC_Rect (*callback)(FC_Image* src, FC_Rect* srcrect, FC_Target* dest, float x, float y, float xscale, float yscale));
+
 FC_Rect FC_DefaultRenderCallback(FC_Image* src, FC_Rect* srcrect, FC_Target* dest, float x, float y, float xscale, float yscale);
 
 

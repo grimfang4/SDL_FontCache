@@ -67,8 +67,100 @@ THE SOFTWARE.
 
 
 
+static char* new_concat(const char* a, const char* b)
+{
+    // Create new buffer
+    unsigned int size = strlen(a) + strlen(b);
+    char* new_string = (char*)malloc(size+1);
+    
+    // Concatenate strings in the new buffer
+    strcpy(new_string, a);
+    strcat(new_string, b);
+    
+    return new_string;
+}
+
+static char* replace_concat(char** a, const char* b)
+{
+    char* new_string = new_concat(*a, b);
+    free(*a);
+    *a = new_string;
+    return *a;
+}
+
+
+
+
+
 // Shared buffer for variadic text
 static char* fc_buffer = NULL;
+
+const char* FC_GetStringASCII(void)
+{
+    static char* buffer = NULL;
+    if(buffer == NULL)
+    {
+        int i;
+        char c;
+        buffer = (char*)malloc(512);
+        memset(buffer, 0, 512);
+        i = 0;
+        c = 32;
+        while(1)
+        {
+            buffer[i] = c;
+            if(c == 126)
+                break;
+            ++i;
+            ++c;
+        }
+    }
+    return buffer;
+}
+
+const char* FC_GetStringLatin1(void)
+{
+    static char* buffer = NULL;
+    if(buffer == NULL)
+    {
+        int i;
+        unsigned char c;
+        buffer = (char*)malloc(512);
+        memset(buffer, 0, 512);
+        i = 0;
+        c = 0xA0;
+        while(1)
+        {
+            buffer[i] = 0xC2;
+            buffer[i+1] = c;
+            if(c == 0xBF)
+                break;
+            i += 2;
+            ++c;
+        }
+        i += 2;
+        c = 0x80;
+        while(1)
+        {
+            buffer[i] = 0xC3;
+            buffer[i+1] = c;
+            if(c == 0xBF)
+                break;
+            i += 2;
+            ++c;
+        }
+    }
+    return buffer;
+}
+
+const char* FC_GetStringASCII_Latin1(void)
+{
+    static char* buffer = NULL;
+    if(buffer == NULL)
+        buffer = new_concat(FC_GetStringASCII(), FC_GetStringLatin1());
+    
+    return buffer;
+}
 
 FC_Rect FC_MakeRect(float x, float y, float w, float h)
 {
@@ -282,6 +374,8 @@ struct FC_Font
     int glyph_cache_count;
     SDL_Texture** glyph_cache;
     
+    char* loading_string;
+    
 };
 
 // Private
@@ -361,6 +455,20 @@ int U8_charsize(const char* c)
     else
         return 4;
     return 1;
+}
+
+int U8_charcpy(char* buffer, const char* source, int buffer_size)
+{
+    int charsize;
+    if(buffer == NULL || source == NULL || buffer_size < 1)
+        return 0;
+    
+    charsize = U8_charsize(source);
+    if(charsize > buffer_size)
+        return 0;
+    
+    memcpy(buffer, source, charsize);
+    return charsize;
 }
 
 const char* U8_next(const char* string)
@@ -614,7 +722,14 @@ Uint32 FC_GetCodepointFromUTF8(const char** c, Uint8 advance_pointer)
 }
 
 
-
+void FC_SetLoadingString(FC_Font* font, const char* string)
+{
+    if(font == NULL)
+        return;
+    
+    free(font->loading_string);
+    font->loading_string = U8_strdup(string);
+}
 
 
 void FC_SetBufferSize(unsigned int size)
@@ -668,6 +783,8 @@ static void FC_Init(FC_Font* font)
     font->glyph_cache_size = 3;
     font->glyph_cache_count = 0;
     font->glyph_cache = (SDL_Texture**)malloc(font->glyph_cache_size * sizeof(SDL_Texture*));
+
+    font->loading_string = U8_strdup(FC_GetStringASCII_Latin1());
 
     if(fc_buffer == NULL)
         fc_buffer = (char*)malloc(1024);
@@ -766,6 +883,7 @@ FC_Font* FC_CreateFont(void)
     return font;
 }
 
+
 #ifdef FC_USE_GPU
 Uint8 FC_LoadFontFromTTF(FC_Font* font, TTF_Font* ttf, SDL_Color color)
 #else
@@ -795,8 +913,9 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
     {
         SDL_Color white = {255, 255, 255, 255};
         SDL_Surface* surf;
-        char buff[2];
-        int i;
+        char buff[5];
+        const char* buff_ptr = buff;
+        const char* source_string;
         
         // Copy glyphs from the surface to the font texture and store the position data
         // Pack row by row into a square texture
@@ -808,16 +927,18 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
         font->last_glyph.rect.y = 0;
         font->last_glyph.rect.w = 0;
         font->last_glyph.rect.h = font->height;
-
-        buff[1] = '\0';
-        for(i = 0; i < 127 - 32; i++)
+        
+        memset(buff, 0, 5);
+        source_string = font->loading_string;
+        for(; *source_string != '\0'; source_string = U8_next(source_string))
         {
-            buff[0] = i + 32;
+            if(!U8_charcpy(buff, source_string, 5))
+                continue;
             surf = TTF_RenderUTF8_Blended(ttf, buff, white);
             if(surf == NULL)
                 continue;
             
-            if(FC_PackGlyphData(font, buff[0], surf->w, dest->w, dest->h) != NULL)
+            if(FC_PackGlyphData(font, FC_GetCodepointFromUTF8(&buff_ptr, 0), surf->w, dest->w, dest->h) != NULL)
             {
                 SDL_SetSurfaceBlendMode(surf, SDL_BLENDMODE_NONE);
                 SDL_Rect srcRect = {0, 0, surf->w, surf->h};
@@ -966,6 +1087,8 @@ void FC_ClearFont(FC_Font* font)
     }
     free(font->glyph_cache);
     
+    free(font->loading_string);
+    
     // Reset font
     FC_Init(font);
 }
@@ -994,6 +1117,8 @@ void FC_FreeFont(FC_Font* font)
         #endif
     }
     free(font->glyph_cache);
+    
+    free(font->loading_string);
     
     free(font);
 }
@@ -1190,27 +1315,6 @@ FC_Rect FC_Draw(FC_Font* font, FC_Target* dest, float x, float y, const char* fo
 }
 
 
-
-static char* new_concat(const char* a, const char* b)
-{
-    // Create new buffer
-    unsigned int size = strlen(a) + strlen(b);
-    char* new_string = (char*)malloc(size+1);
-    
-    // Concatenate strings in the new buffer
-    strcpy(new_string, a);
-    strcat(new_string, b);
-    
-    return new_string;
-}
-
-static char* replace_concat(char** a, const char* b)
-{
-    char* new_string = new_concat(*a, b);
-    free(*a);
-    *a = new_string;
-    return *a;
-}
 
 typedef struct FC_StringList
 {
