@@ -95,6 +95,8 @@ void loop_drawSomeText()
     FC_Font* font2 = FC_CreateFont();
     FC_Font* font3 = FC_CreateFont();
     
+    //FC_SetLoadingString(font, FC_GetStringASCII_Latin1());
+    
     #ifdef SDL_GPU_VERSION_MAJOR
     FC_LoadFont(font, "fonts/FreeSans.ttf", 20, FC_MakeColor(0,0,0,255), TTF_STYLE_NORMAL);
     FC_LoadFont(font2, "fonts/FreeSans.ttf", 18, FC_MakeColor(0,200,0,255), TTF_STYLE_NORMAL);
@@ -137,6 +139,7 @@ void loop_drawSomeText()
     SDL_Color black = {0, 0, 0, 255};
     SDL_Color white = {255, 255, 255, 255};
     SDL_Color gray = {0x77, 0x77, 0x77, 255};
+    SDL_Color blue = {0, 0, 127, 255};
     
     int scroll = 0;
     
@@ -260,15 +263,20 @@ void loop_drawSomeText()
         
         if(mode == 1)
         {
-            fill_rect(leftHalf, black);
-            fill_rect(rightHalf, black);
+            fill_rect(leftHalf, blue);
+            fill_rect(rightHalf, blue);
             
             #ifdef SDL_GPU_VERSION_MAJOR
             GPU_Image* image = FC_GetGlyphCacheLevel(font, 0);
+            GPU_SetRGBA(image, 255, 255, 255, 255);
             GPU_Blit(image, NULL, screen, image->w/2, image->h/2);
             #else
             SDL_Texture* image = FC_GetGlyphCacheLevel(font, 0);
-            SDL_RenderCopy(renderer, image, NULL, NULL);
+            SDL_Rect destrect = {0, 0, 0, 0};
+            SDL_QueryTexture(image, NULL, NULL, &destrect.w, &destrect.h);
+            SDL_SetTextureColorMod(image, 255, 255, 255);
+            SDL_SetTextureAlphaMod(image, 255);
+            SDL_RenderCopy(renderer, image, NULL, &destrect);
             #endif
         }
 	    
@@ -308,10 +316,18 @@ int main(int argc, char* argv[])
         return 1;
     }
     
-    if(SDL_CreateWindowAndRenderer(w, h, SDL_WINDOW_SHOWN, &window, &renderer) < 0)
+    window = SDL_CreateWindow("", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, w, h, SDL_WINDOW_SHOWN);
+    if(window == NULL)
     {
-        SDL_Log("Failed to create window and renderer.\n");
+        SDL_Log("Failed to create window.\n");
         return 2;
+    }
+    
+    renderer = SDL_CreateRenderer(window, -1, SDL_RENDERER_PRESENTVSYNC);
+    if(renderer == NULL)
+    {
+        SDL_Log("Failed to create renderer.\n");
+        return 3;
     }
     #endif
     

@@ -782,13 +782,19 @@ static void FC_Init(FC_Font* font)
     font->last_glyph.rect.h = 0;
     font->last_glyph.cache_level = 0;
     
+    if(font->glyphs != NULL)
+        FC_MapFree(font->glyphs);
+    
     font->glyphs = FC_MapCreate(FC_DEFAULT_NUM_BUCKETS);
     
     font->glyph_cache_size = 3;
     font->glyph_cache_count = 0;
+    
+    
     font->glyph_cache = (FC_Image**)malloc(font->glyph_cache_size * sizeof(FC_Image*));
 
-    font->loading_string = U8_strdup(FC_GetStringASCII());
+    if(font->loading_string == NULL)
+        font->loading_string = U8_strdup(FC_GetStringASCII());
 
     if(fc_buffer == NULL)
         fc_buffer = (char*)malloc(1024);
@@ -890,6 +896,8 @@ FC_Font* FC_CreateFont(void)
     FC_Font* font;
     
     font = (FC_Font*)malloc(sizeof(FC_Font));
+    memset(font, 0, sizeof(FC_Font));
+    
     FC_Init(font);
     
     return font;
@@ -1089,8 +1097,12 @@ void FC_ClearFont(FC_Font* font)
     if(font->owns_ttf_source)
         TTF_CloseFont(font->ttf_source);
     
+    font->owns_ttf_source = 0;
+    font->ttf_source = NULL;
+    
     // Delete glyph map
     FC_MapFree(font->glyphs);
+    font->glyphs = NULL;
     
     // Delete glyph cache
     for(i = 0; i < font->glyph_cache_count; ++i)
@@ -1102,8 +1114,7 @@ void FC_ClearFont(FC_Font* font)
         #endif
     }
     free(font->glyph_cache);
-    
-    free(font->loading_string);
+    font->glyph_cache = NULL;
     
     // Reset font
     FC_Init(font);
@@ -1195,7 +1206,7 @@ Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
         }
         
         SDL_SetSurfaceBlendMode(surf, SDL_BLENDMODE_NONE);
-
+        
         #ifdef FC_USE_SDL_GPU
         {
             GPU_Image* img = GPU_CopyImageFromSurface(surf);
@@ -1328,12 +1339,7 @@ FC_Rect FC_Draw(FC_Font* font, FC_Target* dest, float x, float y, const char* fo
     #else
     SDL_SetTextureColorMod(src, font->default_color.r, font->default_color.g, font->default_color.b);
     SDL_SetTextureAlphaMod(src, font->default_color.a);
-    {
-        FC_Rect result = FC_RenderLeft(font, dest, x, y, FC_MakeScale(1,1), fc_buffer);
-        SDL_SetTextureColorMod(src, 255, 255, 255);
-        SDL_SetTextureAlphaMod(src, 255);
-        return result;
-    }
+    return FC_RenderLeft(font, dest, x, y, FC_MakeScale(1,1), fc_buffer);
     #endif
 }
 
@@ -1561,7 +1567,10 @@ FC_Rect FC_DrawBox(FC_Font* font, FC_Target* dest, FC_Rect box, const char* form
     Uint8 useClip = dest->use_clip_rect;
     GPU_Rect oldclip, newclip;
     oldclip = dest->clip_rect;
-    newclip = FC_RectIntersect(oldclip, box);
+    if(useClip)
+        newclip = FC_RectIntersect(oldclip, box);
+    else
+        newclip = box;
     GPU_SetClipRect(dest, newclip);
     
     GPU_SetRGBA(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
@@ -1588,9 +1597,6 @@ FC_Rect FC_DrawBox(FC_Font* font, FC_Target* dest, FC_Rect box, const char* form
     r = oldclip;
     //SDL_RenderSetClipRect(dest, &r);
     //SDL_RenderSetClipRect(dest, NULL);
-
-    SDL_SetTextureColorMod(src, 255, 255, 255);
-    SDL_SetTextureAlphaMod(src, 255);
     #endif
 
     return box;
@@ -1611,7 +1617,10 @@ FC_Rect FC_DrawBoxAlign(FC_Font* font, FC_Target* dest, FC_Rect box, FC_AlignEnu
     Uint8 useClip = dest->use_clip_rect;
     GPU_Rect oldclip, newclip;
     oldclip = dest->clip_rect;
-    newclip = FC_RectIntersect(oldclip, box);
+    if(useClip)
+        newclip = FC_RectIntersect(oldclip, box);
+    else
+        newclip = box;
     GPU_SetClipRect(dest, newclip);
     
     GPU_SetRGBA(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
@@ -1638,9 +1647,6 @@ FC_Rect FC_DrawBoxAlign(FC_Font* font, FC_Target* dest, FC_Rect box, FC_AlignEnu
     r = oldclip;
     //SDL_RenderSetClipRect(dest, &r);
     //SDL_RenderSetClipRect(dest, NULL);
-
-    SDL_SetTextureColorMod(src, 255, 255, 255);
-    SDL_SetTextureAlphaMod(src, 255);
     #endif
 
     return box;
@@ -1668,11 +1674,6 @@ FC_Rect FC_DrawColumn(FC_Font* font, FC_Target* dest, float x, float y, Uint16 w
     #endif
 
     FC_DrawColumnFromBuffer(font, dest, box, &total_height, FC_MakeScale(1,1), FC_ALIGN_LEFT);
-    
-    #ifndef FC_USE_SDL_GPU
-    SDL_SetTextureColorMod(src, 255, 255, 255);
-    SDL_SetTextureAlphaMod(src, 255);
-    #endif
 
     return FC_MakeRect(box.x, box.y, width, total_height);
 }
@@ -1711,11 +1712,6 @@ FC_Rect FC_DrawColumnAlign(FC_Font* font, FC_Target* dest, float x, float y, Uin
     }
 
     FC_DrawColumnFromBuffer(font, dest, box, &total_height, FC_MakeScale(1,1), align);
-    
-    #ifndef FC_USE_SDL_GPU
-    SDL_SetTextureColorMod(src, 255, 255, 255);
-    SDL_SetTextureAlphaMod(src, 255);
-    #endif
 
     return FC_MakeRect(box.x, box.y, width, total_height);
 }
@@ -1803,15 +1799,7 @@ FC_Rect FC_DrawScale(FC_Font* font, FC_Target* dest, float x, float y, FC_Scale 
     #else
     SDL_SetTextureColorMod(src, font->default_color.r, font->default_color.g, font->default_color.b);
     SDL_SetTextureAlphaMod(src, font->default_color.a);
-    
-    {
-        FC_Rect result = FC_RenderLeft(font, dest, x, y, scale, fc_buffer);
-        
-        SDL_SetTextureColorMod(src, 255, 255, 255);
-        SDL_SetTextureAlphaMod(src, 255);
-        
-        return result;
-    }
+    return FC_RenderLeft(font, dest, x, y, scale, fc_buffer);
     #endif
 }
 
@@ -1850,11 +1838,6 @@ FC_Rect FC_DrawAlign(FC_Font* font, FC_Target* dest, float x, float y, FC_AlignE
             break;
     }
 
-    #ifndef FC_USE_SDL_GPU
-    SDL_SetTextureColorMod(src, 255, 255, 255);
-    SDL_SetTextureAlphaMod(src, 255);
-    #endif
-
     return result;
 }
 
@@ -1872,15 +1855,11 @@ FC_Rect FC_DrawColor(FC_Font* font, FC_Target* dest, float x, float y, SDL_Color
     #ifdef FC_USE_SDL_GPU
     GPU_SetRGBA(src, color.r, color.g, color.b, color.a);
     GPU_Rect result = FC_RenderLeft(font, dest, x, y, FC_MakeScale(1,1), fc_buffer);
-    GPU_SetRGBA(src, 255, 255, 255, 255);
     #else
     SDL_SetTextureColorMod(src, color.r, color.g, color.b);
     SDL_SetTextureAlphaMod(src, color.a);
     
     FC_Rect result = FC_RenderLeft(font, dest, x, y, FC_MakeScale(1,1), fc_buffer);
-    
-    SDL_SetTextureColorMod(src, 255, 255, 255);
-    SDL_SetTextureAlphaMod(src, 255);
     #endif
 
     return result;
@@ -1922,13 +1901,6 @@ FC_Rect FC_DrawEffect(FC_Font* font, FC_Target* dest, float x, float y, FC_Effec
             break;
     }
     
-    #ifdef FC_USE_SDL_GPU
-    GPU_SetRGBA(src, 255, 255, 255, 255);
-    #else
-    SDL_SetTextureColorMod(src, 255, 255, 255);
-    SDL_SetTextureAlphaMod(src, 255);
-    #endif
-
     return result;
 }
 

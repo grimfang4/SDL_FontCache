@@ -30,7 +30,7 @@
 			</Target>
 			<Target title="Debug - SDL_gpu">
 				<Option platforms="Windows;" />
-				<Option output="./test" prefix_auto="1" extension_auto="1" />
+				<Option output="./test-SDL_gpu" prefix_auto="1" extension_auto="1" />
 				<Option object_output="obj/Debug-SDL_gpu/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
