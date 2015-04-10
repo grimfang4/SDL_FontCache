@@ -1211,6 +1211,7 @@ Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
         {
             GPU_Image* img = GPU_CopyImageFromSurface(surf);
             GPU_SetImageFilter(img, GPU_FILTER_NEAREST);
+            GPU_SetBlendMode(img, GPU_BLEND_SET);
             SDL_FreeSurface(surf);
             
             SDL_Rect destrect = e->rect;
