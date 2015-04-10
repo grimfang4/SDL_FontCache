@@ -28,6 +28,33 @@
 					<Add directory="../externals/SDL_ttf/lib_windows" />
 				</Linker>
 			</Target>
+			<Target title="Debug - SDL_gpu">
+				<Option platforms="Windows;" />
+				<Option output="./test" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Debug-SDL_gpu/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-Wall" />
+					<Add option="-g" />
+					<Add option="-DFC_USE_SDL_GPU" />
+					<Add directory="../externals/SDL2/include/SDL2" />
+					<Add directory="../externals/SDL_ttf/include" />
+					<Add directory=".." />
+					<Add directory="../externals/SDL_gpu/include" />
+				</Compiler>
+				<Linker>
+					<Add library="mingw32" />
+					<Add library="SDL2main" />
+					<Add library="SDL2_gpu" />
+					<Add library="SDL2" />
+					<Add library="SDL2_ttf" />
+					<Add library="OpenGL32" />
+					<Add directory="../externals/SDL2/lib_windows" />
+					<Add directory="../externals/SDL_ttf/lib_windows" />
+					<Add directory="../externals/SDL_gpu/lib_windows" />
+				</Linker>
+			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />

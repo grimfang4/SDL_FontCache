@@ -46,7 +46,7 @@ void fill_rect(FC_Rect rect, SDL_Color color)
 void set_clip(FC_Rect rect)
 {
     #ifdef SDL_GPU_VERSION_MAJOR
-    GPU_SetClipRect(screen, rect.to_GPU_Rect());
+    GPU_SetClipRect(screen, rect);
     #else
     //SDL_RenderSetClipRect(renderer, &rect);
     #endif
@@ -262,8 +262,14 @@ void loop_drawSomeText()
         {
             fill_rect(leftHalf, black);
             fill_rect(rightHalf, black);
+            
+            #ifdef SDL_GPU_VERSION_MAJOR
+            GPU_Image* image = FC_GetGlyphCacheLevel(font, 0);
+            GPU_Blit(image, NULL, screen, image->w/2, image->h/2);
+            #else
             SDL_Texture* image = FC_GetGlyphCacheLevel(font, 0);
             SDL_RenderCopy(renderer, image, NULL, NULL);
+            #endif
         }
 	    
         #ifdef SDL_GPU_VERSION_MAJOR
