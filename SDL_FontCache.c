@@ -95,6 +95,8 @@ static char* replace_concat(char** a, const char* b)
 // Shared buffer for variadic text
 static char* fc_buffer = NULL;
 
+static Uint8 fc_has_render_target_support = 0;
+
 const char* FC_GetStringASCII(void)
 {
     static char* buffer = NULL;
@@ -800,6 +802,76 @@ static void FC_Init(FC_Font* font)
         fc_buffer = (char*)malloc(1024);
 }
 
+static Uint8 FC_GrowGlyphCache(FC_Font* font)
+{
+    if(font == NULL)
+        return 0;
+    #ifdef FC_USE_SDL_GPU
+    GPU_Image* new_level = GPU_CreateImage(font->height * 12, font->height * 12, GPU_FORMAT_RGBA);
+    #else
+    SDL_Texture* new_level = SDL_CreateTexture(font->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, font->height * 12, font->height * 12);
+    #endif
+    if(new_level == NULL || !FC_SetGlyphCacheLevel(font, font->glyph_cache_count, new_level))
+    {
+        FC_Log("Error: SDL_FontCache ran out of packing space and could not add another cache level.\n");
+        #ifdef FC_USE_SDL_GPU
+        GPU_FreeImage(new_level);
+        #else
+        SDL_DestroyTexture(new_level);
+        #endif
+        return 0;
+    }
+    return 1;
+}
+
+static Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* data_surface)
+{
+    if(font == NULL || data_surface == NULL)
+        return 0;
+    #ifdef FC_USE_SDL_GPU
+    GPU_Image* new_level = GPU_CopyImageFromSurface(data_surface);
+    #else
+    SDL_Texture* new_level;
+    if(!fc_has_render_target_support)
+        new_level = SDL_CreateTextureFromSurface(font->renderer, data_surface);
+    else
+    {
+        // Must upload with render target enabled so we can put more glyphs on later
+        SDL_Renderer* renderer = font->renderer;
+        new_level = SDL_CreateTexture(renderer, data_surface->format->format, SDL_TEXTUREACCESS_TARGET, data_surface->w, data_surface->h);
+        SDL_SetTextureBlendMode(new_level, SDL_BLENDMODE_BLEND);
+        
+        {
+            Uint8 r, g, b, a;
+            SDL_Texture* temp = SDL_CreateTextureFromSurface(renderer, data_surface);
+            SDL_SetTextureBlendMode(temp, SDL_BLENDMODE_NONE);
+            SDL_SetRenderTarget(renderer, new_level);
+            
+            SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
+            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
+            SDL_RenderClear(renderer);
+            SDL_SetRenderDrawColor(renderer, r, g, b, a);
+            
+            SDL_RenderCopy(renderer, temp, NULL, NULL);
+            SDL_SetRenderTarget(renderer, NULL);
+            
+            SDL_DestroyTexture(temp);
+        }
+    }
+    #endif
+    if(new_level == NULL || !FC_SetGlyphCacheLevel(font, font->glyph_cache_count, new_level))
+    {
+        FC_Log("Error: SDL_FontCache ran out of packing space and could not add another cache level.\n");
+        #ifdef FC_USE_SDL_GPU
+        GPU_FreeImage(new_level);
+        #else
+        SDL_DestroyTexture(new_level);
+        #endif
+        return 0;
+    }
+    return 1;
+}
+
 static FC_GlyphData* FC_PackGlyphData(FC_Font* font, Uint32 codepoint, Uint16 width, Uint16 maxWidth, Uint16 maxHeight)
 {
     FC_Map* glyphs = font->glyphs;
@@ -810,26 +882,12 @@ static FC_GlyphData* FC_PackGlyphData(FC_Font* font, Uint32 codepoint, Uint16 wi
     {
         if(last_glyph->rect.y + height + height >= maxHeight)
         {
-            // Add another glyph cache level and keep going
-            #ifdef FC_USE_SDL_GPU
-            GPU_Image* new_level = GPU_CreateImage(font->height * 12, font->height * 12, GPU_FORMAT_RGBA);
-            #else
-            SDL_Texture* new_level = SDL_CreateTexture(font->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, font->height * 12, font->height * 12);
-            #endif
-            if(new_level == NULL || !FC_SetGlyphCacheLevel(font, font->glyph_cache_count, new_level))
-            {
-                FC_Log("Error: SDL_FontCache ran out of packing space and could not add another cache level.\n");
-                #ifdef FC_USE_SDL_GPU
-                GPU_FreeImage(new_level);
-                #else
-                SDL_DestroyTexture(new_level);
-                #endif
-                return NULL;
-            }
+            // Get ready to pack on the next cache level when it is ready
             last_glyph->cache_level = font->glyph_cache_count;
             last_glyph->rect.x = 0;
             last_glyph->rect.y = 0;
             last_glyph->rect.w = 0;
+            return NULL;
         }
         else
         {
@@ -904,6 +962,9 @@ FC_Font* FC_CreateFont(void)
 }
 
 
+// Assume this many will be enough...
+#define FC_LOAD_MAX_SURFACES 10
+
 #ifdef FC_USE_SDL_GPU
 Uint8 FC_LoadFontFromTTF(FC_Font* font, TTF_Font* ttf, SDL_Color color)
 #else
@@ -919,7 +980,15 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
     
     FC_ClearFont(font);
     
-    #ifndef FC_USE_SDL_GPU
+    
+    // Might as well check render target support here
+    #ifdef FC_USE_SDL_GPU
+    fc_has_render_target_support = GPU_IsFeatureEnabled(GPU_FEATURE_RENDER_TARGETS);
+    #else
+    SDL_RendererInfo info;
+    SDL_GetRendererInfo(renderer, &info);
+    fc_has_render_target_support = (info.flags & SDL_RENDERER_TARGETTEXTURE);
+    
     font->renderer = renderer;
     #endif
     
@@ -936,17 +1005,21 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
     
     {
         SDL_Color white = {255, 255, 255, 255};
-        SDL_Surface* surf;
+        SDL_Surface* glyph_surf;
         char buff[5];
         const char* buff_ptr = buff;
         const char* source_string;
+        Uint8 packed = 0;
         
         // Copy glyphs from the surface to the font texture and store the position data
         // Pack row by row into a square texture
         // Try figuring out dimensions that make sense for the font size.
         unsigned int w = font->height*12;
         unsigned int h = font->height*12;
-        SDL_Surface* dest = FC_CreateSurface32(w, h);
+        SDL_Surface* surfaces[FC_LOAD_MAX_SURFACES];
+        int num_surfaces = 0;
+        surfaces[num_surfaces] = FC_CreateSurface32(w, h);
+        num_surfaces++;
         font->last_glyph.rect.x = 0;
         font->last_glyph.rect.y = 0;
         font->last_glyph.rect.w = 0;
@@ -958,46 +1031,48 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
         {
             if(!U8_charcpy(buff, source_string, 5))
                 continue;
-            surf = TTF_RenderUTF8_Blended(ttf, buff, white);
-            if(surf == NULL)
+            glyph_surf = TTF_RenderUTF8_Blended(ttf, buff, white);
+            if(glyph_surf == NULL)
                 continue;
             
-            if(FC_PackGlyphData(font, FC_GetCodepointFromUTF8(&buff_ptr, 0), surf->w, dest->w, dest->h) != NULL)
+            // Try packing.  If it fails, create a new surface for the next cache level.
+            packed = (FC_PackGlyphData(font, FC_GetCodepointFromUTF8(&buff_ptr, 0), glyph_surf->w, surfaces[num_surfaces-1]->w, surfaces[num_surfaces-1]->h) != NULL);
+            if(!packed)
             {
-                SDL_SetSurfaceBlendMode(surf, SDL_BLENDMODE_NONE);
-                SDL_Rect srcRect = {0, 0, surf->w, surf->h};
-                SDL_Rect destrect = font->last_glyph.rect;
-                SDL_BlitSurface(surf, &srcRect, dest, &destrect);
+                if(num_surfaces >= FC_LOAD_MAX_SURFACES)
+                {
+                    // Can't do any more!
+                    FC_Log("SDL_FontCache error: Could not create enough cache surfaces to fit all of the loading string!\n");
+                    SDL_FreeSurface(glyph_surf);
+                    break;
+                }
+                surfaces[num_surfaces] = FC_CreateSurface32(w, h);
+                num_surfaces++;
             }
             
-            SDL_FreeSurface(surf);
+            // Try packing for the new surface, then blit onto it.
+            if(packed || FC_PackGlyphData(font, FC_GetCodepointFromUTF8(&buff_ptr, 0), glyph_surf->w, surfaces[num_surfaces-1]->w, surfaces[num_surfaces-1]->h) != NULL)
+            {
+                SDL_SetSurfaceBlendMode(glyph_surf, SDL_BLENDMODE_NONE);
+                SDL_Rect srcRect = {0, 0, glyph_surf->w, glyph_surf->h};
+                SDL_Rect destrect = font->last_glyph.rect;
+                SDL_BlitSurface(glyph_surf, &srcRect, surfaces[num_surfaces-1], &destrect);
+            }
+            
+            SDL_FreeSurface(glyph_surf);
         }
         
-        #ifdef FC_USE_SDL_GPU
-        FC_SetGlyphCacheLevel(font, 0, GPU_CopyImageFromSurface(dest));
-        GPU_SetImageFilter(font->glyph_cache[0], GPU_FILTER_NEAREST);
-        #else
-        FC_SetGlyphCacheLevel(font, 0, SDL_CreateTexture(renderer, dest->format->format, SDL_TEXTUREACCESS_TARGET, dest->w, dest->h));
-        SDL_SetTextureBlendMode(font->glyph_cache[0], SDL_BLENDMODE_BLEND);
-        
+        int i;
+        for(i = 0; i < num_surfaces; ++i)
         {
-            Uint8 r, g, b, a;
-            SDL_Texture* temp = SDL_CreateTextureFromSurface(renderer, dest);
-            SDL_SetTextureBlendMode(temp, SDL_BLENDMODE_NONE);
-            SDL_SetRenderTarget(renderer, font->glyph_cache[0]);
-            
-            SDL_GetRenderDrawColor(renderer, &r, &g, &b, &a);
-            SDL_SetRenderDrawColor(renderer, 0, 0, 0, 0);
-            SDL_RenderClear(renderer);
-            SDL_SetRenderDrawColor(renderer, r, g, b, a);
-            
-            SDL_RenderCopy(renderer, temp, NULL, NULL);
-            SDL_SetRenderTarget(renderer, NULL);
-            
-            SDL_DestroyTexture(temp);
+            FC_UploadGlyphCache(font, i, surfaces[i]);
+            SDL_FreeSurface(surfaces[i]);
+            #ifdef FC_USE_SDL_GPU
+            GPU_SetImageFilter(font->glyph_cache[i], GPU_FILTER_NEAREST);
+            #else
+            SDL_SetTextureBlendMode(font->glyph_cache[i], SDL_BLENDMODE_BLEND);
+            #endif
         }
-        #endif
-        SDL_FreeSurface(dest);
     }
     
     return 1;
@@ -1155,6 +1230,46 @@ int FC_GetNumCacheLevels(FC_Font* font)
     return font->glyph_cache_count;
 }
 
+Uint8 FC_AddGlyphToCache(FC_Font* font, SDL_Surface* glyph_surface)
+{
+    if(font == NULL || glyph_surface == NULL)
+        return 0;
+    
+    SDL_SetSurfaceBlendMode(glyph_surface, SDL_BLENDMODE_NONE);
+    FC_Image* dest = FC_GetGlyphCacheLevel(font, font->last_glyph.cache_level);
+    if(dest == NULL)
+        return 0;
+    
+    #ifdef FC_USE_SDL_GPU
+    {
+        GPU_Target* target = GPU_LoadTarget(dest);
+        if(target == NULL)
+            return 0;
+        GPU_Image* img = GPU_CopyImageFromSurface(glyph_surface);
+        GPU_SetImageFilter(img, GPU_FILTER_NEAREST);
+        GPU_SetBlendMode(img, GPU_BLEND_SET);
+        
+        SDL_Rect destrect = font->last_glyph.rect;
+        GPU_Blit(img, NULL, target, destrect.x + destrect.w/2, destrect.y + destrect.h/2);
+        
+        GPU_FreeImage(img);
+        GPU_FreeTarget(target);
+    }
+    #else
+    {
+        SDL_Texture* img = SDL_CreateTextureFromSurface(font->renderer, glyph_surface);
+        
+        SDL_Rect destrect = font->last_glyph.rect;
+        SDL_SetRenderTarget(font->renderer, dest);
+        SDL_RenderCopy(font->renderer, img, NULL, &destrect);
+        SDL_SetRenderTarget(font->renderer, NULL);
+        SDL_DestroyTexture(img);
+    }
+    #endif
+    
+    return 1;
+}
+
 Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
 {
     FC_GlyphData* e = FC_MapFind(font->glyphs, codepoint);
@@ -1164,74 +1279,51 @@ Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
         int w, h;
         SDL_Color white = {255, 255, 255, 255};
         SDL_Surface* surf;
-        #ifdef FC_USE_SDL_GPU
-        GPU_Target* dest;
-        #endif
+        FC_Image* cache_image;
         
         if(font->ttf_source == NULL)
             return 0;
         
         FC_GetUTF8FromCodepoint(buff, codepoint);
         
-        #ifdef FC_USE_SDL_GPU
-        dest = GPU_LoadTarget(FC_GetGlyphCacheLevel(font, font->last_glyph.cache_level));
-        if(dest == NULL)
+        cache_image = FC_GetGlyphCacheLevel(font, font->last_glyph.cache_level);
+        if(cache_image == NULL)
         {
-            GPU_LogError("SDL_FontCache: Failed to load target, so cannot add new glyphs!\n");
+            FC_Log("SDL_FontCache: Failed to load cache image, so cannot add new glyphs!\n");
             return 0;
         }
-        w = dest->w;
-        h = dest->h;
+        #ifdef FC_USE_SDL_GPU
+        w = cache_image->w;
+        h = cache_image->h;
         #else
-        SDL_QueryTexture(FC_GetGlyphCacheLevel(font, font->last_glyph.cache_level), NULL, NULL, &w, &h);
+        SDL_QueryTexture(cache_image, NULL, NULL, &w, &h);
         #endif
         
         surf = TTF_RenderUTF8_Blended(font->ttf_source, buff, white);
         if(surf == NULL)
         {
-            #ifdef FC_USE_SDL_GPU
-            GPU_FreeTarget(dest);
-            #endif
             return 0;
         }
         
         e = FC_PackGlyphData(font, codepoint, surf->w, w, h);
         if(e == NULL)
         {
-            SDL_FreeSurface(surf);
-            #ifdef FC_USE_SDL_GPU
-            GPU_FreeTarget(dest);
-            #endif
-            return 0;
+            // Grow the cache
+            FC_GrowGlyphCache(font);
+            
+            // Try packing again
+            e = FC_PackGlyphData(font, codepoint, surf->w, w, h);
+            if(e == NULL)
+            {
+                SDL_FreeSurface(surf);
+                return 0;
+            }
         }
         
-        SDL_SetSurfaceBlendMode(surf, SDL_BLENDMODE_NONE);
+        // Render onto the cache texture
+        FC_AddGlyphToCache(font, surf);
         
-        #ifdef FC_USE_SDL_GPU
-        {
-            GPU_Image* img = GPU_CopyImageFromSurface(surf);
-            GPU_SetImageFilter(img, GPU_FILTER_NEAREST);
-            GPU_SetBlendMode(img, GPU_BLEND_SET);
-            SDL_FreeSurface(surf);
-            
-            SDL_Rect destrect = e->rect;
-            GPU_Blit(img, NULL, dest, destrect.x + destrect.w/2, destrect.y + destrect.h/2);
-            GPU_FreeImage(img);
-            
-            GPU_FreeTarget(dest);
-        }
-        #else
-        {
-            SDL_Texture* img = SDL_CreateTextureFromSurface(font->renderer, surf);
-            SDL_FreeSurface(surf);
-            
-            SDL_Rect destrect = e->rect;
-            SDL_SetRenderTarget(font->renderer, FC_GetGlyphCacheLevel(font, e->cache_level));
-            SDL_RenderCopy(font->renderer, img, NULL, &destrect);
-            SDL_SetRenderTarget(font->renderer, NULL);
-            SDL_DestroyTexture(img);
-        }
-        #endif
+        SDL_FreeSurface(surf);
     }
     
     if(result != NULL && e != NULL)
