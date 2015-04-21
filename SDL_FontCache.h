@@ -183,8 +183,8 @@ char* U8_strdup(const char* string);
 /*! Returns the number of UTF-8 characters in the given string. */
 int U8_strlen(const char* string);
 
-/*! Returns the number of bytes in the UTF-8 multibyte character pointed at by c. */
-int U8_charsize(const char* c);
+/*! Returns the number of bytes in the UTF-8 multibyte character pointed at by 'character'. */
+int U8_charsize(const char* character);
 
 /*! Copies the source multibyte character into the given buffer without overrunning it.  Returns 0 on failure. */
 int U8_charcpy(char* buffer, const char* source, int buffer_size);

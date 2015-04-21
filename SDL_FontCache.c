@@ -445,16 +445,16 @@ int U8_strlen(const char* string)
     return length;
 }
 
-int U8_charsize(const char* c)
+int U8_charsize(const char* character)
 {
-    if(c == NULL)
+    if(character == NULL)
         return 0;
     
-    if((unsigned char)*c <= 0x7F)
+    if((unsigned char)*character <= 0x7F)
         return 1;
-    else if((unsigned char)*c < 0xE0)
+    else if((unsigned char)*character < 0xE0)
         return 2;
-    else if((unsigned char)*c < 0xF0)
+    else if((unsigned char)*character < 0xF0)
         return 3;
     else
         return 4;
@@ -999,7 +999,7 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
     font->ascent = TTF_FontAscent(ttf);
     font->descent = -TTF_FontDescent(ttf);
     
-    font->baseline = TTF_FontHeight(ttf) - font->descent;
+    font->baseline = font->height - font->descent;
 
     font->default_color = color;
     
@@ -1067,9 +1067,7 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
         {
             FC_UploadGlyphCache(font, i, surfaces[i]);
             SDL_FreeSurface(surfaces[i]);
-            #ifdef FC_USE_SDL_GPU
-            GPU_SetImageFilter(font->glyph_cache[i], GPU_FILTER_NEAREST);
-            #else
+            #ifndef FC_USE_SDL_GPU
             SDL_SetTextureBlendMode(font->glyph_cache[i], SDL_BLENDMODE_BLEND);
             #endif
         }
