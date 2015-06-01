@@ -1622,21 +1622,25 @@ static FC_StringList* FC_GetBufferFitToColumn(FC_Font* font, int width, FC_Scale
     FC_StringList* result = NULL;
     FC_StringList** current = &result;
 
-    FC_StringList* ls = (keep_newlines? FC_ExplodeAndKeep(fc_buffer, '\n') : FC_Explode(fc_buffer, '\n'));
-    for(; ls != NULL; ls = ls->next)
+    FC_StringList *ls, *iter;
+    
+    ls = (keep_newlines? FC_ExplodeAndKeep(fc_buffer, '\n') : FC_Explode(fc_buffer, '\n'));
+    for(iter = ls; iter != NULL; iter = iter->next)
     {
-        char* line = ls->value;
+        char* line = iter->value;
 
         // If line is too long, then add words one at a time until we go over.
         if(width > 0 && FC_GetWidth(font, "%s", line) > width)
         {
-            FC_StringList* words = FC_Explode(line, ' ');
+            FC_StringList *words, *word_iter;
+            
+            words = FC_Explode(line, ' ');
+            // Skip the first word for the iterator, so there will always be at least one word per line
             line = new_concat(words->value, " ");
-            words = words->next;
-            while(words != NULL)
+            for(word_iter = words->next; word_iter != NULL; word_iter = word_iter->next)
             {
-                char* line_plus_word = new_concat(line, words->value);
-                char* word_plus_space = new_concat(words->value, " ");
+                char* line_plus_word = new_concat(line, word_iter->value);
+                char* word_plus_space = new_concat(word_iter->value, " ");
                 if(FC_GetWidth(font, line_plus_word) > width)
                 {
                     current = FC_StringListPushBack(current, line, 0);
@@ -1649,15 +1653,14 @@ static FC_StringList* FC_GetBufferFitToColumn(FC_Font* font, int width, FC_Scale
                     free(word_plus_space);
                 }
                 free(line_plus_word);
-                
-                words = words->next;
             }
             current = FC_StringListPushBack(current, line, 0);
+            FC_StringListFree(words);
         }
         else
         {
             current = FC_StringListPushBack(current, line, 0);
-            ls->value = NULL;
+            iter->value = NULL;
         }
     }
     FC_StringListFree(ls);
@@ -1668,11 +1671,12 @@ static FC_StringList* FC_GetBufferFitToColumn(FC_Font* font, int width, FC_Scale
 static void FC_DrawColumnFromBuffer(FC_Font* font, FC_Target* dest, FC_Rect box, int* total_height, FC_Scale scale, FC_AlignEnum align)
 {
     int y = box.y;
-    FC_StringList* ls;
+    FC_StringList *ls, *iter;
     
-    for(ls = FC_GetBufferFitToColumn(font, box.w, scale, 0); ls != NULL; ls = ls->next)
+    ls = FC_GetBufferFitToColumn(font, box.w, scale, 0);
+    for(iter = ls; iter != NULL; iter = iter->next)
     {
-        FC_RenderAlign(font, dest, box.x, y, box.w, scale, align, ls->value);
+        FC_RenderAlign(font, dest, box.x, y, box.w, scale, align, iter->value);
         y += FC_GetLineHeight(font);
     }
     FC_StringListFree(ls);
@@ -2082,7 +2086,7 @@ Uint16 FC_GetColumnHeight(FC_Font* font, Uint16 width, const char* formatted_tex
 {
     int y = 0;
     
-    FC_StringList* ls;
+    FC_StringList *ls, *iter;
     
     if(font == NULL)
         return 0;
@@ -2092,7 +2096,8 @@ Uint16 FC_GetColumnHeight(FC_Font* font, Uint16 width, const char* formatted_tex
         
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
     
-    for(ls = FC_GetBufferFitToColumn(font, width, FC_MakeScale(1,1), 0); ls != NULL; ls = ls->next)
+    ls = FC_GetBufferFitToColumn(font, width, FC_MakeScale(1,1), 0);
+    for(iter = ls; iter != NULL; iter = iter->next)
     {
         y += FC_GetLineHeight(font);
     }
