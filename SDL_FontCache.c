@@ -66,6 +66,49 @@ THE SOFTWARE.
 
 
 
+static Uint8 has_clip(FC_Target* dest)
+{
+    #ifdef FC_USE_SDL_GPU
+    return dest->use_clip_rect;
+    #else
+    return SDL_RenderIsClipEnabled(dest);
+    #endif
+}
+
+static FC_Rect get_clip(FC_Target* dest)
+{
+    #ifdef FC_USE_SDL_GPU
+    return dest->clip_rect;
+    #else
+    SDL_Rect r;
+    SDL_RenderGetClipRect(dest, &r);
+    return r;
+    #endif
+}
+
+static void set_clip(FC_Target* dest, FC_Rect* rect)
+{
+    #ifdef FC_USE_SDL_GPU
+    if(rect != NULL)
+        GPU_SetClipRect(dest, *rect);
+    else
+        GPU_UnsetClip(dest);
+    #else
+    SDL_RenderSetClipRect(dest, rect);
+    #endif
+}
+
+static void set_color(FC_Image* src, Uint8 r, Uint8 g, Uint8 b, Uint8 a)
+{
+    #ifdef FC_USE_SDL_GPU
+    GPU_SetRGBA(src, r, g, b, a);
+    #else
+    SDL_SetTextureColorMod(src, r, g, b);
+    SDL_SetTextureAlphaMod(src, a);
+    #endif
+}
+
+
 
 static char* new_concat(const char* a, const char* b)
 {
@@ -1424,14 +1467,9 @@ FC_Rect FC_Draw(FC_Font* font, FC_Target* dest, float x, float y, const char* fo
     // FIXME: How can I predict which glyph caches are to be used?  Colors can't be set in this function!
     src = FC_GetGlyphCacheLevel(font, 0);
 
-    #ifdef FC_USE_SDL_GPU
-    GPU_SetRGBA(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
+    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
+    
     return FC_RenderLeft(font, dest, x, y, FC_MakeScale(1,1), fc_buffer);
-    #else
-    SDL_SetTextureColorMod(src, font->default_color.r, font->default_color.g, font->default_color.b);
-    SDL_SetTextureAlphaMod(src, font->default_color.a);
-    return FC_RenderLeft(font, dest, x, y, FC_MakeScale(1,1), fc_buffer);
-    #endif
 }
 
 
@@ -1654,41 +1692,25 @@ FC_Rect FC_DrawBox(FC_Font* font, FC_Target* dest, FC_Rect box, const char* form
     // FIXME: Color should be set elsewhere
     src = FC_GetGlyphCacheLevel(font, 0);
 
-    #ifdef FC_USE_SDL_GPU
-    Uint8 useClip = dest->use_clip_rect;
-    GPU_Rect oldclip, newclip;
-    oldclip = dest->clip_rect;
+    Uint8 useClip = has_clip(dest);
+    FC_Rect oldclip, newclip;
     if(useClip)
+    {
+        oldclip = get_clip(dest);
         newclip = FC_RectIntersect(oldclip, box);
+    }
     else
         newclip = box;
-    GPU_SetClipRect(dest, newclip);
+    set_clip(dest, &newclip);
     
-    GPU_SetRGBA(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
-    #else
-    SDL_Rect oldclip;
-    FC_Rect newclip;
-    //SDL_RenderGetClipRect(dest, &oldclip);
-    newclip = FC_RectIntersect(oldclip, box);
-    SDL_Rect r = newclip;
-    //SDL_RenderSetClipRect(dest, &r);
-    
-    SDL_SetTextureColorMod(src, font->default_color.r, font->default_color.g, font->default_color.b);
-    SDL_SetTextureAlphaMod(src, font->default_color.a);
-    #endif
+    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
 
     FC_DrawColumnFromBuffer(font, dest, box, NULL, FC_MakeScale(1,1), FC_ALIGN_LEFT);
     
-    #ifdef FC_USE_SDL_GPU
     if(useClip)
-        GPU_SetClipRect(dest, oldclip);
+        set_clip(dest, &oldclip);
     else
-        GPU_UnsetClip(dest);
-    #else
-    r = oldclip;
-    //SDL_RenderSetClipRect(dest, &r);
-    //SDL_RenderSetClipRect(dest, NULL);
-    #endif
+        set_clip(dest, NULL);
 
     return box;
 }
@@ -1704,41 +1726,25 @@ FC_Rect FC_DrawBoxAlign(FC_Font* font, FC_Target* dest, FC_Rect box, FC_AlignEnu
     // FIXME: Color should be set elsewhere
     src = FC_GetGlyphCacheLevel(font, 0);
 
-    #ifdef FC_USE_SDL_GPU
-    Uint8 useClip = dest->use_clip_rect;
-    GPU_Rect oldclip, newclip;
-    oldclip = dest->clip_rect;
+    Uint8 useClip = has_clip(dest);
+    FC_Rect oldclip, newclip;
     if(useClip)
+    {
+        oldclip = get_clip(dest);
         newclip = FC_RectIntersect(oldclip, box);
+    }
     else
         newclip = box;
-    GPU_SetClipRect(dest, newclip);
+    set_clip(dest, &newclip);
     
-    GPU_SetRGBA(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
-    #else
-    SDL_Rect oldclip;
-    FC_Rect newclip;
-    //SDL_RenderGetClipRect(dest, &oldclip);
-    newclip = FC_RectIntersect(oldclip, box);
-    SDL_Rect r = newclip;
-    //SDL_RenderSetClipRect(dest, &r);
-    
-    SDL_SetTextureColorMod(src, font->default_color.r, font->default_color.g, font->default_color.b);
-    SDL_SetTextureAlphaMod(src, font->default_color.a);
-    #endif
+    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
 
     FC_DrawColumnFromBuffer(font, dest, box, NULL, FC_MakeScale(1,1), align);
     
-    #ifdef FC_USE_SDL_GPU
     if(useClip)
-        GPU_SetClipRect(dest, oldclip);
+        set_clip(dest, &oldclip);
     else
-        GPU_UnsetClip(dest);
-    #else
-    r = oldclip;
-    //SDL_RenderSetClipRect(dest, &r);
-    //SDL_RenderSetClipRect(dest, NULL);
-    #endif
+        set_clip(dest, NULL);
 
     return box;
 }
@@ -1757,12 +1763,7 @@ FC_Rect FC_DrawColumn(FC_Font* font, FC_Target* dest, float x, float y, Uint16 w
     // FIXME: Color should be set elsewhere
     src = FC_GetGlyphCacheLevel(font, 0);
     
-    #ifdef FC_USE_SDL_GPU
-    GPU_SetRGBA(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
-    #else
-    SDL_SetTextureColorMod(src, font->default_color.r, font->default_color.g, font->default_color.b);
-    SDL_SetTextureAlphaMod(src, font->default_color.a);
-    #endif
+    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
 
     FC_DrawColumnFromBuffer(font, dest, box, &total_height, FC_MakeScale(1,1), FC_ALIGN_LEFT);
 
@@ -1783,12 +1784,7 @@ FC_Rect FC_DrawColumnAlign(FC_Font* font, FC_Target* dest, float x, float y, Uin
     // FIXME: Color should be set elsewhere
     src = FC_GetGlyphCacheLevel(font, 0);
     
-    #ifdef FC_USE_SDL_GPU
-    GPU_SetRGBA(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
-    #else
-    SDL_SetTextureColorMod(src, font->default_color.r, font->default_color.g, font->default_color.b);
-    SDL_SetTextureAlphaMod(src, font->default_color.a);
-    #endif
+    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
     
     switch(align)
     {
@@ -1884,14 +1880,8 @@ FC_Rect FC_DrawScale(FC_Font* font, FC_Target* dest, float x, float y, FC_Scale 
     // FIXME: Color should be set elsewhere
     src = FC_GetGlyphCacheLevel(font, 0);
 
-    #ifdef FC_USE_SDL_GPU
-    GPU_SetRGBA(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
+    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
     return FC_RenderLeft(font, dest, x, y, scale, fc_buffer);
-    #else
-    SDL_SetTextureColorMod(src, font->default_color.r, font->default_color.g, font->default_color.b);
-    SDL_SetTextureAlphaMod(src, font->default_color.a);
-    return FC_RenderLeft(font, dest, x, y, scale, fc_buffer);
-    #endif
 }
 
 FC_Rect FC_DrawAlign(FC_Font* font, FC_Target* dest, float x, float y, FC_AlignEnum align, const char* formatted_text, ...)
@@ -1905,12 +1895,7 @@ FC_Rect FC_DrawAlign(FC_Font* font, FC_Target* dest, float x, float y, FC_AlignE
     // FIXME: Color should be set elsewhere
     src = FC_GetGlyphCacheLevel(font, 0);
     
-    #ifdef FC_USE_SDL_GPU
-    GPU_SetRGBA(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
-    #else
-    SDL_SetTextureColorMod(src, font->default_color.r, font->default_color.g, font->default_color.b);
-    SDL_SetTextureAlphaMod(src, font->default_color.a);
-    #endif
+    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
     
     FC_Rect result;
     switch(align)
@@ -1943,17 +1928,9 @@ FC_Rect FC_DrawColor(FC_Font* font, FC_Target* dest, float x, float y, SDL_Color
     // FIXME: Color should be set elsewhere
     src = FC_GetGlyphCacheLevel(font, 0);
 
-    #ifdef FC_USE_SDL_GPU
-    GPU_SetRGBA(src, color.r, color.g, color.b, color.a);
-    GPU_Rect result = FC_RenderLeft(font, dest, x, y, FC_MakeScale(1,1), fc_buffer);
-    #else
-    SDL_SetTextureColorMod(src, color.r, color.g, color.b);
-    SDL_SetTextureAlphaMod(src, color.a);
+    set_color(src, color.r, color.g, color.b, color.a);
     
-    FC_Rect result = FC_RenderLeft(font, dest, x, y, FC_MakeScale(1,1), fc_buffer);
-    #endif
-
-    return result;
+    return FC_RenderLeft(font, dest, x, y, FC_MakeScale(1,1), fc_buffer);
 }
 
 
@@ -1968,12 +1945,7 @@ FC_Rect FC_DrawEffect(FC_Font* font, FC_Target* dest, float x, float y, FC_Effec
     // FIXME: Color should be set elsewhere
     src = FC_GetGlyphCacheLevel(font, 0);
     
-    #ifdef FC_USE_SDL_GPU
-    GPU_SetRGBA(src, effect.color.r, effect.color.g, effect.color.b, effect.color.a);
-    #else
-    SDL_SetTextureColorMod(src, effect.color.r, effect.color.g, effect.color.b);
-    SDL_SetTextureAlphaMod(src, effect.color.a);
-    #endif
+    set_color(src, effect.color.r, effect.color.g, effect.color.b, effect.color.a);
     
     FC_Rect result;
     switch(effect.alignment)

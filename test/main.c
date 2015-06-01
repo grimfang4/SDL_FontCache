@@ -48,7 +48,7 @@ void set_clip(FC_Rect rect)
     #ifdef SDL_GPU_VERSION_MAJOR
     GPU_SetClipRect(screen, rect);
     #else
-    //SDL_RenderSetClipRect(renderer, &rect);
+    SDL_RenderSetClipRect(renderer, &rect);
     #endif
 }
 
@@ -57,7 +57,7 @@ void unset_clip()
     #ifdef SDL_GPU_VERSION_MAJOR
     GPU_UnsetClip(screen);
     #else
-    //SDL_RenderSetClipRect(renderer, NULL);
+    SDL_RenderSetClipRect(renderer, NULL);
     #endif
 }
 
