@@ -1,6 +1,5 @@
 
 # Bugs  
-	Implement clipping with SDL_Renderer.  
     Why is the font line height so big?  
 		
 # Features  
