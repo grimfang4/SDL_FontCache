@@ -1060,9 +1060,8 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
         unsigned int w = font->height*12;
         unsigned int h = font->height*12;
         SDL_Surface* surfaces[FC_LOAD_MAX_SURFACES];
-        int num_surfaces = 0;
-        surfaces[num_surfaces] = FC_CreateSurface32(w, h);
-        num_surfaces++;
+        int num_surfaces = 1;
+        surfaces[0] = FC_CreateSurface32(w, h);
         font->last_glyph.rect.x = 0;
         font->last_glyph.rect.y = 0;
         font->last_glyph.rect.w = 0;
@@ -1688,6 +1687,7 @@ static void FC_DrawColumnFromBuffer(FC_Font* font, FC_Target* dest, FC_Rect box,
 FC_Rect FC_DrawBox(FC_Font* font, FC_Target* dest, FC_Rect box, const char* formatted_text, ...)
 {
     FC_Image* src;
+    Uint8 useClip;
     if(formatted_text == NULL || font == NULL)
         return FC_MakeRect(box.x, box.y, 0, 0);
     
@@ -1696,7 +1696,7 @@ FC_Rect FC_DrawBox(FC_Font* font, FC_Target* dest, FC_Rect box, const char* form
     // FIXME: Color should be set elsewhere
     src = FC_GetGlyphCacheLevel(font, 0);
 
-    Uint8 useClip = has_clip(dest);
+    useClip = has_clip(dest);
     FC_Rect oldclip, newclip;
     if(useClip)
     {
@@ -1722,6 +1722,7 @@ FC_Rect FC_DrawBox(FC_Font* font, FC_Target* dest, FC_Rect box, const char* form
 FC_Rect FC_DrawBoxAlign(FC_Font* font, FC_Target* dest, FC_Rect box, FC_AlignEnum align, const char* formatted_text, ...)
 {
     FC_Image* src;
+    Uint8 useClip;
     if(formatted_text == NULL || font == NULL)
         return FC_MakeRect(box.x, box.y, 0, 0);
     
@@ -1730,7 +1731,7 @@ FC_Rect FC_DrawBoxAlign(FC_Font* font, FC_Target* dest, FC_Rect box, FC_AlignEnu
     // FIXME: Color should be set elsewhere
     src = FC_GetGlyphCacheLevel(font, 0);
 
-    Uint8 useClip = has_clip(dest);
+    useClip = has_clip(dest);
     FC_Rect oldclip, newclip;
     if(useClip)
     {
@@ -1744,6 +1745,42 @@ FC_Rect FC_DrawBoxAlign(FC_Font* font, FC_Target* dest, FC_Rect box, FC_AlignEnu
     set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
 
     FC_DrawColumnFromBuffer(font, dest, box, NULL, FC_MakeScale(1,1), align);
+    
+    if(useClip)
+        set_clip(dest, &oldclip);
+    else
+        set_clip(dest, NULL);
+
+    return box;
+}
+
+FC_Rect FC_DrawBoxEffect(FC_Font* font, FC_Target* dest, FC_Rect box, FC_Effect effect, const char* formatted_text, ...)
+{
+    FC_Image* src;
+    Uint8 useClip;
+    if(formatted_text == NULL || font == NULL)
+        return FC_MakeRect(box.x, box.y, 0, 0);
+    
+    FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
+    
+    // FIXME: Color should be set elsewhere
+    src = FC_GetGlyphCacheLevel(font, 0);
+
+    useClip = has_clip(dest);
+    FC_Rect oldclip, newclip;
+    if(useClip)
+    {
+        oldclip = get_clip(dest);
+        newclip = FC_RectIntersect(oldclip, box);
+    }
+    else
+        newclip = box;
+    set_clip(dest, &newclip);
+    
+    set_color(src, effect.color.r, effect.color.g, effect.color.b, effect.color.a);
+
+
+    FC_DrawColumnFromBuffer(font, dest, box, NULL, effect.scale, effect.alignment);
     
     if(useClip)
         set_clip(dest, &oldclip);
@@ -1803,6 +1840,27 @@ FC_Rect FC_DrawColumnAlign(FC_Font* font, FC_Target* dest, float x, float y, Uin
     }
 
     FC_DrawColumnFromBuffer(font, dest, box, &total_height, FC_MakeScale(1,1), align);
+
+    return FC_MakeRect(box.x, box.y, width, total_height);
+}
+
+FC_Rect FC_DrawColumnEffect(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, FC_Effect effect, const char* formatted_text, ...)
+{
+    FC_Image* src;
+    FC_Rect box = {x, y, width, 0};
+    int total_height;
+    
+    if(formatted_text == NULL || font == NULL)
+        return FC_MakeRect(x, y, 0, 0);
+    
+    FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
+    
+    // FIXME: Color should be set elsewhere
+    src = FC_GetGlyphCacheLevel(font, 0);
+
+    set_color(src, effect.color.r, effect.color.g, effect.color.b, effect.color.a);
+    
+    FC_DrawColumnFromBuffer(font, dest, box, &total_height, effect.scale, effect.alignment);
 
     return FC_MakeRect(box.x, box.y, width, total_height);
 }
