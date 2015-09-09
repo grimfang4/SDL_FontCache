@@ -49,7 +49,9 @@ extern "C" {
 
 
 // Let's pretend this exists...
-#define TTF_STYLE_OUTLINE	16
+#ifndef TTF_STYLE_OUTLINE
+    #define TTF_STYLE_OUTLINE	16
+#endif
 
 
 
