@@ -51,6 +51,10 @@ THE SOFTWARE.
     #define FC_GET_ALPHA(sdl_color) ((sdl_color).unused)
 #endif
 
+#if SDL_VERSION_ATLEAST(2,0,4)
+	#define SDL_SUPPORTS_CLIPPING
+#endif
+
 #define FC_MIN(a,b) ((a) < (b)? (a) : (b))
 #define FC_MAX(a,b) ((a) > (b)? (a) : (b))
 
@@ -70,15 +74,17 @@ static Uint8 has_clip(FC_Target* dest)
 {
     #ifdef FC_USE_SDL_GPU
     return dest->use_clip_rect;
-    #else
+	#elif defined(SDL_SUPPORTS_CLIPPING)
     return SDL_RenderIsClipEnabled(dest);
+	#else
+	return 0;
     #endif
 }
 
 static FC_Rect get_clip(FC_Target* dest)
 {
     #ifdef FC_USE_SDL_GPU
-    return dest->clip_rect;
+	return dest->clip_rect;
     #else
     SDL_Rect r;
     SDL_RenderGetClipRect(dest, &r);
@@ -951,7 +957,7 @@ static FC_GlyphData* FC_PackGlyphData(FC_Font* font, Uint32 codepoint, Uint16 wi
 
 FC_Image* FC_GetGlyphCacheLevel(FC_Font* font, int cache_level)
 {
-    if(font == NULL || cache_level < 0 || cache_level > font->glyph_cache_count)
+    if(font == NULL || cache_level < 0 || cache_level >= font->glyph_cache_count)
         return NULL;
     
     return font->glyph_cache[cache_level];
