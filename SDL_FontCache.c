@@ -51,8 +51,9 @@ THE SOFTWARE.
     #define FC_GET_ALPHA(sdl_color) ((sdl_color).unused)
 #endif
 
+// Need SDL_RenderIsClipEnabled() for proper clipping support
 #if SDL_VERSION_ATLEAST(2,0,4)
-	#define SDL_SUPPORTS_CLIPPING
+    #define ENABLE_SDL_CLIPPING
 #endif
 
 #define FC_MIN(a,b) ((a) < (b)? (a) : (b))
@@ -67,6 +68,8 @@ THE SOFTWARE.
     va_end(lst); \
 }
 
+// Extra pixels of padding around each glyph to avoid linear filtering artifacts
+#define FC_CACHE_PADDING 1
 
 
 
@@ -74,20 +77,23 @@ static Uint8 has_clip(FC_Target* dest)
 {
     #ifdef FC_USE_SDL_GPU
     return dest->use_clip_rect;
-	#elif defined(SDL_SUPPORTS_CLIPPING)
+    #elif defined(ENABLE_SDL_CLIPPING)
     return SDL_RenderIsClipEnabled(dest);
-	#else
-	return 0;
+    #else
+    return 0;
     #endif
 }
 
 static FC_Rect get_clip(FC_Target* dest)
 {
     #ifdef FC_USE_SDL_GPU
-	return dest->clip_rect;
-    #else
+    return dest->clip_rect;
+    #elif defined(ENABLE_SDL_CLIPPING)
     SDL_Rect r;
     SDL_RenderGetClipRect(dest, &r);
+    return r;
+    #else
+    SDL_Rect r = {0, 0, 0, 0};
     return r;
     #endif
 }
@@ -99,7 +105,7 @@ static void set_clip(FC_Target* dest, FC_Rect* rect)
         GPU_SetClipRect(dest, *rect);
     else
         GPU_UnsetClip(dest);
-    #else
+    #elif defined(ENABLE_SDL_CLIPPING)
     SDL_RenderSetClipRect(dest, rect);
     #endif
 }
@@ -406,6 +412,8 @@ struct FC_Font
     
     TTF_Font* ttf_source;  // TTF_Font source of characters
     Uint8 owns_ttf_source;  // Can we delete the TTF_Font ourselves?
+    
+    FC_FilterEnum filter;
     
     SDL_Color default_color;
     Uint16 height;
@@ -812,6 +820,8 @@ static void FC_Init(FC_Font* font)
     font->ttf_source = NULL;
     font->owns_ttf_source = 0;
     
+    font->filter = FC_FILTER_NEAREST;
+    
     font->default_color.r = 0;
     font->default_color.g = 0;
     font->default_color.b = 0;
@@ -827,8 +837,9 @@ static void FC_Init(FC_Font* font)
     font->lineSpacing = 0;
     font->letterSpacing = 0;
     
-    font->last_glyph.rect.x = 0;
-    font->last_glyph.rect.y = 0;
+    // Give a little offset for when filtering/mipmaps are used.  Depending on mipmap level, this will still not be enough.
+    font->last_glyph.rect.x = FC_CACHE_PADDING;
+    font->last_glyph.rect.y = FC_CACHE_PADDING;
     font->last_glyph.rect.w = 0;
     font->last_glyph.rect.h = 0;
     font->last_glyph.cache_level = 0;
@@ -879,6 +890,10 @@ static Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* da
         return 0;
     #ifdef FC_USE_SDL_GPU
     GPU_Image* new_level = GPU_CopyImageFromSurface(data_surface);
+    if(FC_GetFilterMode(font) == FC_FILTER_LINEAR)
+        GPU_SetImageFilter(new_level, GPU_FILTER_LINEAR);
+    else
+        GPU_SetImageFilter(new_level, GPU_FILTER_NEAREST);
     #else
     SDL_Texture* new_level;
     if(!fc_has_render_target_support)
@@ -887,8 +902,19 @@ static Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* da
     {
         // Must upload with render target enabled so we can put more glyphs on later
         SDL_Renderer* renderer = font->renderer;
+        
+        // Set filter mode for new texture
+        const char* old_filter_mode = SDL_GetHint(SDL_HINT_RENDER_SCALE_QUALITY);
+        if(FC_GetFilterMode(font) == FC_FILTER_LINEAR)
+            SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
+        else
+            SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
+        
         new_level = SDL_CreateTexture(renderer, data_surface->format->format, SDL_TEXTUREACCESS_TARGET, data_surface->w, data_surface->h);
         SDL_SetTextureBlendMode(new_level, SDL_BLENDMODE_BLEND);
+        
+        // Reset filter mode for the temp texture
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "0");
         
         {
             Uint8 r, g, b, a;
@@ -906,9 +932,13 @@ static Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* da
             
             SDL_DestroyTexture(temp);
         }
+        
+        // Reset to the old filter value
+        SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, old_filter_mode);
+        
     }
     #endif
-    if(new_level == NULL || !FC_SetGlyphCacheLevel(font, font->glyph_cache_count, new_level))
+    if(new_level == NULL || !FC_SetGlyphCacheLevel(font, cache_level, new_level))
     {
         FC_Log("Error: SDL_FontCache ran out of packing space and could not add another cache level.\n");
         #ifdef FC_USE_SDL_GPU
@@ -925,30 +955,30 @@ static FC_GlyphData* FC_PackGlyphData(FC_Font* font, Uint32 codepoint, Uint16 wi
 {
     FC_Map* glyphs = font->glyphs;
     FC_GlyphData* last_glyph = &font->last_glyph;
-    Uint16 height = font->height;
+    Uint16 height = font->height + FC_CACHE_PADDING;
     
-    if(last_glyph->rect.x + last_glyph->rect.w + width >= maxWidth)
+    if(last_glyph->rect.x + last_glyph->rect.w + width >= maxWidth - FC_CACHE_PADDING)
     {
-        if(last_glyph->rect.y + height + height >= maxHeight)
+        if(last_glyph->rect.y + height + height >= maxHeight - FC_CACHE_PADDING)
         {
             // Get ready to pack on the next cache level when it is ready
             last_glyph->cache_level = font->glyph_cache_count;
-            last_glyph->rect.x = 0;
-            last_glyph->rect.y = 0;
+            last_glyph->rect.x = FC_CACHE_PADDING;
+            last_glyph->rect.y = FC_CACHE_PADDING;
             last_glyph->rect.w = 0;
             return NULL;
         }
         else
         {
             // Go to next row
-            last_glyph->rect.x = 0;
+            last_glyph->rect.x = FC_CACHE_PADDING;
             last_glyph->rect.y += height;
             last_glyph->rect.w = 0;
         }
     }
     
     // Move to next space
-    last_glyph->rect.x += last_glyph->rect.w + 1;
+    last_glyph->rect.x += last_glyph->rect.w + 1 + FC_CACHE_PADDING;
     last_glyph->rect.w = width;
     
     return FC_MapInsert(glyphs, codepoint, FC_MakeGlyphData(last_glyph->cache_level, last_glyph->rect.x, last_glyph->rect.y, last_glyph->rect.w, last_glyph->rect.h));
@@ -957,7 +987,7 @@ static FC_GlyphData* FC_PackGlyphData(FC_Font* font, Uint32 codepoint, Uint16 wi
 
 FC_Image* FC_GetGlyphCacheLevel(FC_Font* font, int cache_level)
 {
-    if(font == NULL || cache_level < 0 || cache_level >= font->glyph_cache_count)
+    if(font == NULL || cache_level < 0 || cache_level > font->glyph_cache_count)
         return NULL;
     
     return font->glyph_cache[cache_level];
@@ -1068,8 +1098,8 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
         SDL_Surface* surfaces[FC_LOAD_MAX_SURFACES];
         int num_surfaces = 1;
         surfaces[0] = FC_CreateSurface32(w, h);
-        font->last_glyph.rect.x = 0;
-        font->last_glyph.rect.y = 0;
+        font->last_glyph.rect.x = FC_CACHE_PADDING;
+        font->last_glyph.rect.y = FC_CACHE_PADDING;
         font->last_glyph.rect.w = 0;
         font->last_glyph.rect.h = font->height;
         
@@ -1087,6 +1117,7 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
             packed = (FC_PackGlyphData(font, FC_GetCodepointFromUTF8(&buff_ptr, 0), glyph_surf->w, surfaces[num_surfaces-1]->w, surfaces[num_surfaces-1]->h) != NULL);
             if(!packed)
             {
+                int i = num_surfaces-1;
                 if(num_surfaces >= FC_LOAD_MAX_SURFACES)
                 {
                     // Can't do any more!
@@ -1094,6 +1125,17 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
                     SDL_FreeSurface(glyph_surf);
                     break;
                 }
+                
+                // Upload the current surface to the glyph cache now so we can keep the cache level packing cursor up to date as we go.
+                FC_UploadGlyphCache(font, i, surfaces[i]);
+                SDL_FreeSurface(surfaces[i]);
+                #ifndef FC_USE_SDL_GPU
+                SDL_SetTextureBlendMode(font->glyph_cache[i], SDL_BLENDMODE_BLEND);
+                #endif
+                // Update the glyph cursor to the new cache level.  We need to do this here because the actual cache lags behind our use of the packing above.
+                font->last_glyph.cache_level = num_surfaces;
+                
+                
                 surfaces[num_surfaces] = FC_CreateSurface32(w, h);
                 num_surfaces++;
             }
@@ -1110,9 +1152,8 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
             SDL_FreeSurface(glyph_surf);
         }
         
-        int i;
-        for(i = 0; i < num_surfaces; ++i)
         {
+            int i = num_surfaces-1;
             FC_UploadGlyphCache(font, i, surfaces[i]);
             SDL_FreeSurface(surfaces[i]);
             #ifndef FC_USE_SDL_GPU
@@ -1461,18 +1502,27 @@ static FC_Rect FC_RenderLeft(FC_Font* font, FC_Target* dest, float x, float y, F
     return dirtyRect;
 }
 
+static void set_color_for_all_caches(FC_Font* font, SDL_Color color)
+{
+    // TODO: How can I predict which glyph caches are to be used?
+    FC_Image* img;
+    int i;
+    int num_levels = FC_GetNumCacheLevels(font);
+    for(i = 0; i < num_levels; ++i)
+    {
+        img = FC_GetGlyphCacheLevel(font, i);
+        set_color(img, color.r, color.g, color.b, FC_GET_ALPHA(color));
+    }
+}
+
 FC_Rect FC_Draw(FC_Font* font, FC_Target* dest, float x, float y, const char* formatted_text, ...)
 {
-    FC_Image* src;
     if(formatted_text == NULL || font == NULL)
         return FC_MakeRect(x, y, 0, 0);
     
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
     
-    // FIXME: How can I predict which glyph caches are to be used?  Colors can't be set in this function!
-    src = FC_GetGlyphCacheLevel(font, 0);
-
-    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
+    set_color_for_all_caches(font, font->default_color);
     
     return FC_RenderLeft(font, dest, x, y, FC_MakeScale(1,1), fc_buffer);
 }
@@ -1692,15 +1742,11 @@ static void FC_DrawColumnFromBuffer(FC_Font* font, FC_Target* dest, FC_Rect box,
 
 FC_Rect FC_DrawBox(FC_Font* font, FC_Target* dest, FC_Rect box, const char* formatted_text, ...)
 {
-    FC_Image* src;
     Uint8 useClip;
     if(formatted_text == NULL || font == NULL)
         return FC_MakeRect(box.x, box.y, 0, 0);
     
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
-    
-    // FIXME: Color should be set elsewhere
-    src = FC_GetGlyphCacheLevel(font, 0);
 
     useClip = has_clip(dest);
     FC_Rect oldclip, newclip;
@@ -1713,8 +1759,8 @@ FC_Rect FC_DrawBox(FC_Font* font, FC_Target* dest, FC_Rect box, const char* form
         newclip = box;
     set_clip(dest, &newclip);
     
-    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
-
+    set_color_for_all_caches(font, font->default_color);
+    
     FC_DrawColumnFromBuffer(font, dest, box, NULL, FC_MakeScale(1,1), FC_ALIGN_LEFT);
     
     if(useClip)
@@ -1727,15 +1773,11 @@ FC_Rect FC_DrawBox(FC_Font* font, FC_Target* dest, FC_Rect box, const char* form
 
 FC_Rect FC_DrawBoxAlign(FC_Font* font, FC_Target* dest, FC_Rect box, FC_AlignEnum align, const char* formatted_text, ...)
 {
-    FC_Image* src;
     Uint8 useClip;
     if(formatted_text == NULL || font == NULL)
         return FC_MakeRect(box.x, box.y, 0, 0);
     
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
-    
-    // FIXME: Color should be set elsewhere
-    src = FC_GetGlyphCacheLevel(font, 0);
 
     useClip = has_clip(dest);
     FC_Rect oldclip, newclip;
@@ -1748,9 +1790,71 @@ FC_Rect FC_DrawBoxAlign(FC_Font* font, FC_Target* dest, FC_Rect box, FC_AlignEnu
         newclip = box;
     set_clip(dest, &newclip);
     
-    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
-
+    set_color_for_all_caches(font, font->default_color);
+    
     FC_DrawColumnFromBuffer(font, dest, box, NULL, FC_MakeScale(1,1), align);
+    
+    if(useClip)
+        set_clip(dest, &oldclip);
+    else
+        set_clip(dest, NULL);
+
+    return box;
+}
+
+FC_Rect FC_DrawBoxScale(FC_Font* font, FC_Target* dest, FC_Rect box, FC_Scale scale, const char* formatted_text, ...)
+{
+    Uint8 useClip;
+    if(formatted_text == NULL || font == NULL)
+        return FC_MakeRect(box.x, box.y, 0, 0);
+    
+    FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
+
+    useClip = has_clip(dest);
+    FC_Rect oldclip, newclip;
+    if(useClip)
+    {
+        oldclip = get_clip(dest);
+        newclip = FC_RectIntersect(oldclip, box);
+    }
+    else
+        newclip = box;
+    set_clip(dest, &newclip);
+    
+    set_color_for_all_caches(font, font->default_color);
+    
+    FC_DrawColumnFromBuffer(font, dest, box, NULL, scale, FC_ALIGN_LEFT);
+    
+    if(useClip)
+        set_clip(dest, &oldclip);
+    else
+        set_clip(dest, NULL);
+
+    return box;
+}
+
+FC_Rect FC_DrawBoxColor(FC_Font* font, FC_Target* dest, FC_Rect box, SDL_Color color, const char* formatted_text, ...)
+{
+    Uint8 useClip;
+    if(formatted_text == NULL || font == NULL)
+        return FC_MakeRect(box.x, box.y, 0, 0);
+    
+    FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
+
+    useClip = has_clip(dest);
+    FC_Rect oldclip, newclip;
+    if(useClip)
+    {
+        oldclip = get_clip(dest);
+        newclip = FC_RectIntersect(oldclip, box);
+    }
+    else
+        newclip = box;
+    set_clip(dest, &newclip);
+    
+    set_color_for_all_caches(font, color);
+    
+    FC_DrawColumnFromBuffer(font, dest, box, NULL, FC_MakeScale(1,1), FC_ALIGN_LEFT);
     
     if(useClip)
         set_clip(dest, &oldclip);
@@ -1762,15 +1866,11 @@ FC_Rect FC_DrawBoxAlign(FC_Font* font, FC_Target* dest, FC_Rect box, FC_AlignEnu
 
 FC_Rect FC_DrawBoxEffect(FC_Font* font, FC_Target* dest, FC_Rect box, FC_Effect effect, const char* formatted_text, ...)
 {
-    FC_Image* src;
     Uint8 useClip;
     if(formatted_text == NULL || font == NULL)
         return FC_MakeRect(box.x, box.y, 0, 0);
     
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
-    
-    // FIXME: Color should be set elsewhere
-    src = FC_GetGlyphCacheLevel(font, 0);
 
     useClip = has_clip(dest);
     FC_Rect oldclip, newclip;
@@ -1783,8 +1883,7 @@ FC_Rect FC_DrawBoxEffect(FC_Font* font, FC_Target* dest, FC_Rect box, FC_Effect 
         newclip = box;
     set_clip(dest, &newclip);
     
-    set_color(src, effect.color.r, effect.color.g, effect.color.b, effect.color.a);
-
+    set_color_for_all_caches(font, effect.color);
 
     FC_DrawColumnFromBuffer(font, dest, box, NULL, effect.scale, effect.alignment);
     
@@ -1798,7 +1897,6 @@ FC_Rect FC_DrawBoxEffect(FC_Font* font, FC_Target* dest, FC_Rect box, FC_Effect 
 
 FC_Rect FC_DrawColumn(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, const char* formatted_text, ...)
 {
-    FC_Image* src;
     FC_Rect box = {x, y, width, 0};
     int total_height;
     
@@ -1807,11 +1905,8 @@ FC_Rect FC_DrawColumn(FC_Font* font, FC_Target* dest, float x, float y, Uint16 w
     
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
     
-    // FIXME: Color should be set elsewhere
-    src = FC_GetGlyphCacheLevel(font, 0);
+    set_color_for_all_caches(font, font->default_color);
     
-    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
-
     FC_DrawColumnFromBuffer(font, dest, box, &total_height, FC_MakeScale(1,1), FC_ALIGN_LEFT);
 
     return FC_MakeRect(box.x, box.y, width, total_height);
@@ -1819,7 +1914,6 @@ FC_Rect FC_DrawColumn(FC_Font* font, FC_Target* dest, float x, float y, Uint16 w
 
 FC_Rect FC_DrawColumnAlign(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, FC_AlignEnum align, const char* formatted_text, ...)
 {
-    FC_Image* src;
     FC_Rect box = {x, y, width, 0};
     int total_height;
     
@@ -1828,10 +1922,7 @@ FC_Rect FC_DrawColumnAlign(FC_Font* font, FC_Target* dest, float x, float y, Uin
     
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
     
-    // FIXME: Color should be set elsewhere
-    src = FC_GetGlyphCacheLevel(font, 0);
-    
-    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
+    set_color_for_all_caches(font, font->default_color);
     
     switch(align)
     {
@@ -1850,9 +1941,8 @@ FC_Rect FC_DrawColumnAlign(FC_Font* font, FC_Target* dest, float x, float y, Uin
     return FC_MakeRect(box.x, box.y, width, total_height);
 }
 
-FC_Rect FC_DrawColumnEffect(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, FC_Effect effect, const char* formatted_text, ...)
+FC_Rect FC_DrawColumnScale(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, FC_Scale scale, const char* formatted_text, ...)
 {
-    FC_Image* src;
     FC_Rect box = {x, y, width, 0};
     int total_height;
     
@@ -1861,10 +1951,53 @@ FC_Rect FC_DrawColumnEffect(FC_Font* font, FC_Target* dest, float x, float y, Ui
     
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
     
-    // FIXME: Color should be set elsewhere
-    src = FC_GetGlyphCacheLevel(font, 0);
+    set_color_for_all_caches(font, font->default_color);
+    
+    FC_DrawColumnFromBuffer(font, dest, box, &total_height, scale, FC_ALIGN_LEFT);
 
-    set_color(src, effect.color.r, effect.color.g, effect.color.b, effect.color.a);
+    return FC_MakeRect(box.x, box.y, width, total_height);
+}
+
+FC_Rect FC_DrawColumnColor(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, SDL_Color color, const char* formatted_text, ...)
+{
+    FC_Rect box = {x, y, width, 0};
+    int total_height;
+    
+    if(formatted_text == NULL || font == NULL)
+        return FC_MakeRect(x, y, 0, 0);
+    
+    FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
+    
+    set_color_for_all_caches(font, color);
+    
+    FC_DrawColumnFromBuffer(font, dest, box, &total_height, FC_MakeScale(1,1), FC_ALIGN_LEFT);
+
+    return FC_MakeRect(box.x, box.y, width, total_height);
+}
+
+FC_Rect FC_DrawColumnEffect(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, FC_Effect effect, const char* formatted_text, ...)
+{
+    FC_Rect box = {x, y, width, 0};
+    int total_height;
+    
+    if(formatted_text == NULL || font == NULL)
+        return FC_MakeRect(x, y, 0, 0);
+    
+    FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
+
+    set_color_for_all_caches(font, effect.color);
+    
+    switch(effect.alignment)
+    {
+    case FC_ALIGN_CENTER:
+        box.x -= width/2;
+        break;
+    case FC_ALIGN_RIGHT:
+        box.x -= width;
+        break;
+    default:
+        break;
+    }
     
     FC_DrawColumnFromBuffer(font, dest, box, &total_height, effect.scale, effect.alignment);
 
@@ -1939,31 +2072,24 @@ static FC_Rect FC_RenderRight(FC_Font* font, FC_Target* dest, float x, float y, 
 
 FC_Rect FC_DrawScale(FC_Font* font, FC_Target* dest, float x, float y, FC_Scale scale, const char* formatted_text, ...)
 {
-    FC_Image* src;
     if(formatted_text == NULL || font == NULL)
         return FC_MakeRect(x, y, 0, 0);
     
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
-    
-    // FIXME: Color should be set elsewhere
-    src = FC_GetGlyphCacheLevel(font, 0);
 
-    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
+    set_color_for_all_caches(font, font->default_color);
+    
     return FC_RenderLeft(font, dest, x, y, scale, fc_buffer);
 }
 
 FC_Rect FC_DrawAlign(FC_Font* font, FC_Target* dest, float x, float y, FC_AlignEnum align, const char* formatted_text, ...)
 {
-    FC_Image* src;
     if(formatted_text == NULL || font == NULL)
         return FC_MakeRect(x, y, 0, 0);
     
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
     
-    // FIXME: Color should be set elsewhere
-    src = FC_GetGlyphCacheLevel(font, 0);
-    
-    set_color(src, font->default_color.r, font->default_color.g, font->default_color.b, font->default_color.a);
+    set_color_for_all_caches(font, font->default_color);
     
     FC_Rect result;
     switch(align)
@@ -1987,16 +2113,12 @@ FC_Rect FC_DrawAlign(FC_Font* font, FC_Target* dest, float x, float y, FC_AlignE
 
 FC_Rect FC_DrawColor(FC_Font* font, FC_Target* dest, float x, float y, SDL_Color color, const char* formatted_text, ...)
 {
-    FC_Image* src;
     if(formatted_text == NULL || font == NULL)
         return FC_MakeRect(x, y, 0, 0);
     
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
-    
-    // FIXME: Color should be set elsewhere
-    src = FC_GetGlyphCacheLevel(font, 0);
 
-    set_color(src, color.r, color.g, color.b, color.a);
+    set_color_for_all_caches(font, color);
     
     return FC_RenderLeft(font, dest, x, y, FC_MakeScale(1,1), fc_buffer);
 }
@@ -2004,16 +2126,12 @@ FC_Rect FC_DrawColor(FC_Font* font, FC_Target* dest, float x, float y, SDL_Color
 
 FC_Rect FC_DrawEffect(FC_Font* font, FC_Target* dest, float x, float y, FC_Effect effect, const char* formatted_text, ...)
 {
-    FC_Image* src;
     if(formatted_text == NULL || font == NULL)
         return FC_MakeRect(x, y, 0, 0);
     
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
     
-    // FIXME: Color should be set elsewhere
-    src = FC_GetGlyphCacheLevel(font, 0);
-    
-    set_color(src, effect.color.r, effect.color.g, effect.color.b, effect.color.a);
+    set_color_for_all_caches(font, effect.color);
     
     FC_Rect result;
     switch(effect.alignment)
@@ -2039,6 +2157,15 @@ FC_Rect FC_DrawEffect(FC_Font* font, FC_Target* dest, float x, float y, FC_Effec
 
 
 // Getters
+
+
+FC_FilterEnum FC_GetFilterMode(FC_Font* font)
+{
+    if(font == NULL)
+        return FC_FILTER_NEAREST;
+    
+    return font->filter;
+}
 
 Uint16 FC_GetLineHeight(FC_Font* font)
 {
@@ -2316,7 +2443,7 @@ Uint16 FC_GetPositionFromOffset(FC_Font* font, float x, float y, int column_widt
     int current_y = 0;
     FC_GlyphData glyph_data;
     
-    if(formatted_text == NULL || column_width <= 0 || font == NULL)
+    if(formatted_text == NULL || column_width == 0 || font == NULL)
         return 0;
 
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
@@ -2357,6 +2484,35 @@ Uint16 FC_GetPositionFromOffset(FC_Font* font, float x, float y, int column_widt
 
 
 // Setters
+
+
+void FC_SetFilterMode(FC_Font* font, FC_FilterEnum filter)
+{
+    if(font == NULL)
+        return;
+    
+    if(font->filter != filter)
+    {
+        font->filter = filter;
+        
+        #ifdef FC_USE_SDL_GPU
+        // Update each texture to use this filter mode
+        {
+            int i;
+            GPU_FilterEnum gpu_filter = GPU_FILTER_NEAREST;
+            if(FC_GetFilterMode(font) == FC_FILTER_LINEAR)
+                gpu_filter = GPU_FILTER_LINEAR;
+            
+            for(i = 0; i < font->glyph_cache_count; ++i)
+            {
+                GPU_SetImageFilter(font->glyph_cache[i], gpu_filter);
+            }
+        }
+        #endif
+    }
+}
+
+
 void FC_SetSpacing(FC_Font* font, int LetterSpacing)
 {
     if(font == NULL)

@@ -49,9 +49,7 @@ extern "C" {
 
 
 // Let's pretend this exists...
-#ifndef TTF_STYLE_OUTLINE
-    #define TTF_STYLE_OUTLINE	16
-#endif
+#define TTF_STYLE_OUTLINE	16
 
 
 
@@ -77,6 +75,12 @@ typedef enum
     FC_ALIGN_CENTER,
     FC_ALIGN_RIGHT
 } FC_AlignEnum;
+
+typedef enum
+{
+    FC_FILTER_NEAREST,
+    FC_FILTER_LINEAR
+} FC_FilterEnum;
 
 typedef struct FC_Scale
 {
@@ -243,17 +247,25 @@ FC_Rect FC_DrawEffect(FC_Font* font, FC_Target* dest, float x, float y, FC_Effec
 
 FC_Rect FC_DrawBox(FC_Font* font, FC_Target* dest, FC_Rect box, const char* formatted_text, ...);
 FC_Rect FC_DrawBoxAlign(FC_Font* font, FC_Target* dest, FC_Rect box, FC_AlignEnum align, const char* formatted_text, ...);
+FC_Rect FC_DrawBoxScale(FC_Font* font, FC_Target* dest, FC_Rect box, FC_Scale scale, const char* formatted_text, ...);
+FC_Rect FC_DrawBoxColor(FC_Font* font, FC_Target* dest, FC_Rect box, SDL_Color color, const char* formatted_text, ...);
 FC_Rect FC_DrawBoxEffect(FC_Font* font, FC_Target* dest, FC_Rect box, FC_Effect effect, const char* formatted_text, ...);
+
 FC_Rect FC_DrawColumn(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, const char* formatted_text, ...);
 FC_Rect FC_DrawColumnAlign(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, FC_AlignEnum align, const char* formatted_text, ...);
+FC_Rect FC_DrawColumnScale(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, FC_Scale scale, const char* formatted_text, ...);
+FC_Rect FC_DrawColumnColor(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, SDL_Color color, const char* formatted_text, ...);
 FC_Rect FC_DrawColumnEffect(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, FC_Effect effect, const char* formatted_text, ...);
 
 
 // Getters
 
+FC_FilterEnum FC_GetFilterMode(FC_Font* font);
 Uint16 FC_GetLineHeight(FC_Font* font);
 Uint16 FC_GetHeight(FC_Font* font, const char* formatted_text, ...);
 Uint16 FC_GetWidth(FC_Font* font, const char* formatted_text, ...);
+
+// Returns a 1-pixel wide box in front of the character in the given position (index)
 FC_Rect FC_GetCharacterOffset(FC_Font* font, Uint16 position_index, int column_width, const char* formatted_text, ...);
 Uint16 FC_GetColumnHeight(FC_Font* font, Uint16 width, const char* formatted_text, ...);
 
@@ -266,10 +278,12 @@ Uint16 FC_GetMaxWidth(FC_Font* font);
 SDL_Color FC_GetDefaultColor(FC_Font* font);
 
 Uint8 FC_InRect(float x, float y, FC_Rect input_rect);
+// Given an offset (x,y) from the text draw position (the upper-left corner), returns the character position (UTF-8 index)
 Uint16 FC_GetPositionFromOffset(FC_Font* font, float x, float y, int column_width, FC_AlignEnum align, const char* formatted_text, ...);
 
 // Setters
 
+void FC_SetFilterMode(FC_Font* font, FC_FilterEnum filter);
 void FC_SetSpacing(FC_Font* font, int LetterSpacing);
 void FC_SetLineSpacing(FC_Font* font, int LineSpacing);
 void FC_SetDefaultColor(FC_Font* font, SDL_Color color);
