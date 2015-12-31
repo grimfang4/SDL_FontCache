@@ -49,7 +49,7 @@ extern "C" {
 
 
 // Let's pretend this exists...
-#define TTF_STYLE_OUTLINE	16
+#define TTF_STYLE_OUTLINE   16
 
 
 
@@ -113,18 +113,18 @@ typedef struct FC_GlyphData
  */
 typedef struct FC_Style
 {
-	// basic
-	Uint32 fontSize;
-	int style;
-	Uint16 outline;
-	SDL_Color color;
-	SDL_Color outline_color;
+    // basic
+    Uint32 fontSize;
+    int style;
+    Uint16 outline;
+    SDL_Color color;
+    SDL_Color outline_color;
 
-	// advanced
-	Uint32 *texture;
-	Uint16 textureWidth, textureHeight;
-	FC_Font *fallback;
-	int thickness;
+    // advanced
+    Uint32 *texture;
+    Uint16 textureWidth, textureHeight;
+    FC_Font *fallback;
+    int thickness;
 } FC_Style;
 
 
