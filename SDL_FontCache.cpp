@@ -36,10 +36,6 @@ THE SOFTWARE.
 #include <stdlib.h>
 #include <string.h>
 
-// UTF8-CPP project included
-// http://utfcpp.sourceforge.net/
-#include "utf8.h"
-
 // Visual C does not support static inline
 #ifndef static_inline
     #ifdef _MSC_VER
