@@ -108,7 +108,24 @@ typedef struct FC_GlyphData
     
 } FC_GlyphData;
 
+/*
+ * Color/Texture setting
+ */
+typedef struct FC_Style
+{
+	// basic
+	Uint32 fontSize;
+	int style;
+	Uint16 outline;
+	SDL_Color color;
+	SDL_Color outline_color;
 
+	// advanced
+	Uint32 *texture;
+	Uint16 textureWidth, textureHeight;
+	FC_Font *fallback;
+	int thickness;
+} FC_Style;
 
 
 // Object creation
@@ -132,15 +149,19 @@ FC_Font* FC_CreateFont(void);
 #ifdef FC_USE_SDL_GPU
 Uint8 FC_LoadFont(FC_Font* font, const char* filename_ttf, Uint32 pointSize, SDL_Color color, int style);
 
-Uint8 FC_LoadFontFromTTF(FC_Font* font, TTF_Font* ttf, SDL_Color color);
+Uint8 FC_LoadFontFromStyle(FC_Font* font, const char* filename_ttf, FC_Style* style);
 
-Uint8 FC_LoadFont_RW(FC_Font* font, SDL_RWops* file_rwops_ttf, Uint8 own_rwops, Uint32 pointSize, SDL_Color color, int style);
+Uint8 FC_LoadFont_RW(FC_Font* font, SDL_RWops* file_rwops_ttf, Uint8 own_rwops, FC_Style* style);
+
+Uint8 FC_LoadFontFromTTF(FC_Font* font, TTF_Font* ttf, TTF_Font *ttf_outline, FC_Style* style);
 #else
 Uint8 FC_LoadFont(FC_Font* font, SDL_Renderer* renderer, const char* filename_ttf, Uint32 pointSize, SDL_Color color, int style);
 
-Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, SDL_Color color);
+Uint8 FC_LoadFontFromStyle(FC_Font* font, SDL_Renderer* renderer, const char* filename_ttf, FC_Style* style);
 
-Uint8 FC_LoadFont_RW(FC_Font* font, SDL_Renderer* renderer, SDL_RWops* file_rwops_ttf, Uint8 own_rwops, Uint32 pointSize, SDL_Color color, int style);
+Uint8 FC_LoadFont_RW(FC_Font* font, SDL_Renderer* renderer, SDL_RWops* file_rwops_ttf, Uint8 own_rwops, FC_Style* style);
+
+Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, FC_Style* style);
 #endif
 
 void FC_ClearFont(FC_Font* font);
@@ -238,6 +259,8 @@ FC_GlyphData* FC_SetGlyphData(FC_Font* font, Uint32 codepoint, FC_GlyphData glyp
 
 
 // Rendering
+Uint16 UTF8CharacterToUnicode(const char* source_string);
+SDL_Surface* FC_GetSurface(FC_Font* font, const char* source_string);
 
 FC_Rect FC_Draw(FC_Font* font, FC_Target* dest, float x, float y, const char* formatted_text, ...);
 FC_Rect FC_DrawAlign(FC_Font* font, FC_Target* dest, float x, float y, FC_AlignEnum align, const char* formatted_text, ...);
@@ -287,6 +310,7 @@ void FC_SetFilterMode(FC_Font* font, FC_FilterEnum filter);
 void FC_SetSpacing(FC_Font* font, int LetterSpacing);
 void FC_SetLineSpacing(FC_Font* font, int LineSpacing);
 void FC_SetDefaultColor(FC_Font* font, SDL_Color color);
+void FC_SetFallback(FC_Font *font, FC_Font *fallback);
 
 
 #ifdef __cplusplus
