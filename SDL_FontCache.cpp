@@ -796,6 +796,67 @@ Uint32 FC_GetCodepointFromUTF8(const char** c, Uint8 advance_pointer)
     return result;
 }
 
+Uint16 FC_GetCodepoint16FromUTF8(const char** c) {
+    size_t i = 0;
+    int utf8size = strlen(*c);
+    Uint16 uni = 0;
+    size_t todo;
+    bool error = false;
+    unsigned char ch = (*c)[i++];
+    
+    if (ch <= 0x7F)
+    {
+        uni = ch;
+        todo = 0;
+    }
+    else if (ch <= 0xBF)
+    {
+        return -1;
+    }
+    else if (ch <= 0xDF)
+    {
+        uni = ch & 0x1F;
+        todo = 1;
+    }
+    else if (ch <= 0xEF)
+    {
+        uni = ch & 0x0F;
+        todo = 2;
+    }
+    else if (ch <= 0xF7)
+    {
+        uni = ch & 0x07;
+        todo = 3;
+    }
+    else
+    {
+        return 0;
+    }
+    for (size_t j = 0; j < todo; ++j)
+    {
+        if (i == utf8size)
+            return -1;
+        unsigned char ch = (*c)[i++];
+        if (ch < 0x80 || ch > 0xBF)
+            return -1;
+        uni <<= 6;
+        uni += ch & 0x3F;
+    }
+    if (uni >= 0xD800 && uni <= 0xDFFF)
+        return -1;
+    if (uni > 0x10FFFF)
+        return -1;
+    
+    /*
+     * this shouldn't be happened
+    if (uni > 0xFFFF) {
+        uni -= 0x10000;
+        utf16 += (wchar_t)((uni >> 10) + 0xD800);
+        utf16 += (wchar_t)((uni & 0x3FF) + 0xDC00);
+    }
+     */
+    return uni;
+}
 
 void FC_SetLoadingString(FC_Font* font, const char* string)
 {
@@ -1054,79 +1115,12 @@ FC_Font* FC_CreateFont(void)
     return font;
 }
 
-// temporarily function
-// from http://stackoverflow.com/questions/7153935/how-to-convert-utf-8-stdstring-to-utf-16-stdwstring
-// for more exact process, MUST use iconv library.
-Uint16 ConvertUTF8ChrTo16(const char* utf8)
-{
-    size_t i = 0;
-    int utf8size = strlen(utf8);
-    Uint16 uni = 0;
-    size_t todo;
-    bool error = false;
-    unsigned char ch = utf8[i++];
-
-    if (ch <= 0x7F)
-    {
-        uni = ch;
-        todo = 0;
-    }
-    else if (ch <= 0xBF)
-    {
-        return -1;
-    }
-    else if (ch <= 0xDF)
-    {
-        uni = ch & 0x1F;
-        todo = 1;
-    }
-    else if (ch <= 0xEF)
-    {
-        uni = ch & 0x0F;
-        todo = 2;
-    }
-    else if (ch <= 0xF7)
-    {
-        uni = ch & 0x07;
-        todo = 3;
-    }
-    else
-    {
-        return 0;
-    }
-    for (size_t j = 0; j < todo; ++j)
-    {
-        if (i == utf8size)
-            return -1;
-        unsigned char ch = utf8[i++];
-        if (ch < 0x80 || ch > 0xBF)
-            return -1;
-        uni <<= 6;
-        uni += ch & 0x3F;
-    }
-    if (uni >= 0xD800 && uni <= 0xDFFF)
-        return -1;
-    if (uni > 0x10FFFF)
-        return -1;
-
-/*
- * this shouldn't be happened
-    if (uni > 0xFFFF) {
-        uni -= 0x10000;
-        utf16 += (wchar_t)((uni >> 10) + 0xD800);
-        utf16 += (wchar_t)((uni & 0x3FF) + 0xDC00);
-    }
- */
-    return uni;
-}
-
 SDL_Surface* FC_GetSurface(FC_Font* font, const char* source_string)
 {
     // the first thing we should check if there's glyph in this font
     // if not, we check for fallback for that glyph.
     // if there's no fallback, there's nothing we could do. just go on.
-    Uint16 unicode = ConvertUTF8ChrTo16(source_string);
-    if ((short)unicode != -1 && TTF_GlyphIsProvided(font->ttf_source, unicode) == 0) {
+    if (TTF_GlyphIsProvided(font->ttf_source, FC_GetCodepoint16FromUTF8(&source_string)) == 0) {
         if (font->fallback)
             return FC_GetSurface(font->fallback, source_string);
     }

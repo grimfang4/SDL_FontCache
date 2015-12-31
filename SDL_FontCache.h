@@ -188,6 +188,8 @@ Returns the Uint32 codepoint (not UTF-32) parsed from the given UTF-8 string.
 */
 Uint32 FC_GetCodepointFromUTF8(const char** c, Uint8 advance_pointer);
 
+Uint16 FC_GetCodepoint16FromUTF8(const char** c);
+
 /*!
 Parses the given codepoint and stores the UTF-8 bytes in 'result'.  The result is NULL terminated.
 \param result A memory buffer for the UTF-8 values.  Must be at least 5 bytes long.
@@ -259,7 +261,6 @@ FC_GlyphData* FC_SetGlyphData(FC_Font* font, Uint32 codepoint, FC_GlyphData glyp
 
 
 // Rendering
-Uint16 UTF8CharacterToUnicode(const char* source_string);
 SDL_Surface* FC_GetSurface(FC_Font* font, const char* source_string);
 
 FC_Rect FC_Draw(FC_Font* font, FC_Target* dest, float x, float y, const char* formatted_text, ...);
