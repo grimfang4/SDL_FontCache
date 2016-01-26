@@ -49,7 +49,7 @@ extern "C" {
 
 
 // Let's pretend this exists...
-#define TTF_STYLE_OUTLINE   16
+#define TTF_STYLE_OUTLINE	16
 
 
 
@@ -113,18 +113,18 @@ typedef struct FC_GlyphData
  */
 typedef struct FC_Style
 {
-    // basic
-    Uint32 fontSize;
-    int style;
-    Uint16 outline;
-    SDL_Color color;
-    SDL_Color outline_color;
+	// basic
+	Uint32 fontSize;
+	int style;
+	Uint16 outline;
+	SDL_Color color;
+	SDL_Color outline_color;
 
-    // advanced
-    Uint32 *texture;
-    Uint16 textureWidth, textureHeight;
-    FC_Font *fallback;
-    int thickness;
+	// advanced
+	Uint32 *texture;
+	Uint16 textureWidth, textureHeight;
+	FC_Font *fallback;
+	int thickness;
 } FC_Style;
 
 
@@ -259,6 +259,8 @@ Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint);
 /*! Sets the glyph data for the given codepoint.  Duplicates are not checked.  Returns a pointer to the stored data. */
 FC_GlyphData* FC_SetGlyphData(FC_Font* font, Uint32 codepoint, FC_GlyphData glyph_data);
 
+FC_GlyphData* FC_SetTextureGlyph(SDL_Texture *texture, SDL_Rect *src, Uint32 codepoint, FC_GlyphData glyph_data);
+
 
 // Rendering
 SDL_Surface* FC_GetSurface(FC_Font* font, const char* source_string);
@@ -312,6 +314,8 @@ void FC_SetSpacing(FC_Font* font, int LetterSpacing);
 void FC_SetLineSpacing(FC_Font* font, int LineSpacing);
 void FC_SetDefaultColor(FC_Font* font, SDL_Color color);
 void FC_SetFallback(FC_Font *font, FC_Font *fallback);
+void FC_SetAlphaMod(FC_Font *font, Uint8 a);
+void FC_SetColorMod(FC_Font *font, Uint8 r, Uint8 g, Uint8 b);
 
 
 #ifdef __cplusplus

@@ -38,11 +38,11 @@ THE SOFTWARE.
 
 // Visual C does not support static inline
 #ifndef static_inline
-    #ifdef _MSC_VER
-        #define static_inline static
-    #else
-        #define static_inline static inline
-    #endif
+	#ifdef _MSC_VER
+		#define static_inline static
+	#else
+		#define static_inline static inline
+	#endif
 #endif
 
 #if SDL_VERSION_ATLEAST(2,0,0)
@@ -410,27 +410,27 @@ struct FC_Font
     SDL_Renderer* renderer;
     #endif
 
-    TTF_Font* ttf_source;  // TTF_Font source of characters
+	TTF_Font* ttf_source;  // TTF_Font source of characters
     Uint8 owns_ttf_source;  // Can we delete the TTF_Font ourselves?
     
     FC_FilterEnum filter;
 
-    // foreground 
-    SDL_Color default_color;
+	// foreground 
+	SDL_Color default_color;
     Uint16 height;
-    // outline
-    SDL_Color default_outline_color;
-    Uint16 outline;
-    // texture
-    Uint32 *texture_foreground;
-    Uint16 textureWidth, textureHeight;
-    Uint32 *texture_outline;
-    Uint16 textureOutlineWidth, textureOutlineHeight;
-    // fallback
-    FC_Font *fallback;
-    // style
-    int style;
-    int thickness;
+	// outline
+	SDL_Color default_outline_color;
+	Uint16 outline;
+	// texture
+	Uint32 *texture_foreground;
+	Uint16 textureWidth, textureHeight;
+	Uint32 *texture_outline;
+	Uint16 textureOutlineWidth, textureOutlineHeight;
+	// fallback
+	FC_Font *fallback;
+	// style
+	int style;
+	int thickness;
 
     Uint16 maxWidth;
     Uint16 baseline;
@@ -622,33 +622,33 @@ static_inline FC_Rect FC_RectUnion(FC_Rect A, FC_Rect B)
 static_inline FC_Rect FC_RectIntersect(FC_Rect A, FC_Rect B)
 {
     FC_Rect result;
-    float Amin, Amax, Bmin, Bmax;
+	float Amin, Amax, Bmin, Bmax;
 
-    // Horizontal intersection
-    Amin = A.x;
-    Amax = Amin + A.w;
-    Bmin = B.x;
-    Bmax = Bmin + B.w;
-    if(Bmin > Amin)
-            Amin = Bmin;
-    result.x = Amin;
-    if(Bmax < Amax)
-            Amax = Bmax;
-    result.w = Amax - Amin > 0 ? Amax - Amin : 0;
+	// Horizontal intersection
+	Amin = A.x;
+	Amax = Amin + A.w;
+	Bmin = B.x;
+	Bmax = Bmin + B.w;
+	if(Bmin > Amin)
+	        Amin = Bmin;
+	result.x = Amin;
+	if(Bmax < Amax)
+	        Amax = Bmax;
+	result.w = Amax - Amin > 0 ? Amax - Amin : 0;
 
-    // Vertical intersection
-    Amin = A.y;
-    Amax = Amin + A.h;
-    Bmin = B.y;
-    Bmax = Bmin + B.h;
-    if(Bmin > Amin)
-            Amin = Bmin;
-    result.y = Amin;
-    if(Bmax < Amax)
-            Amax = Bmax;
-    result.h = Amax - Amin > 0 ? Amax - Amin : 0;
+	// Vertical intersection
+	Amin = A.y;
+	Amax = Amin + A.h;
+	Bmin = B.y;
+	Bmax = Bmin + B.h;
+	if(Bmin > Amin)
+	        Amin = Bmin;
+	result.y = Amin;
+	if(Bmax < Amax)
+	        Amax = Bmax;
+	result.h = Amax - Amin > 0 ? Amax - Amin : 0;
 
-    return result;
+	return result;
 }
 
 
@@ -797,65 +797,65 @@ Uint32 FC_GetCodepointFromUTF8(const char** c, Uint8 advance_pointer)
 }
 
 Uint16 FC_GetCodepoint16FromUTF8(const char** c) {
-    size_t i = 0;
-    int utf8size = strlen(*c);
-    Uint16 uni = 0;
-    size_t todo;
-    bool error = false;
-    unsigned char ch = (*c)[i++];
-    
-    if (ch <= 0x7F)
-    {
-        uni = ch;
-        todo = 0;
-    }
-    else if (ch <= 0xBF)
-    {
-        return -1;
-    }
-    else if (ch <= 0xDF)
-    {
-        uni = ch & 0x1F;
-        todo = 1;
-    }
-    else if (ch <= 0xEF)
-    {
-        uni = ch & 0x0F;
-        todo = 2;
-    }
-    else if (ch <= 0xF7)
-    {
-        uni = ch & 0x07;
-        todo = 3;
-    }
-    else
-    {
-        return 0;
-    }
-    for (size_t j = 0; j < todo; ++j)
-    {
-        if (i == utf8size)
-            return -1;
-        unsigned char ch = (*c)[i++];
-        if (ch < 0x80 || ch > 0xBF)
-            return -1;
-        uni <<= 6;
-        uni += ch & 0x3F;
-    }
-    if (uni >= 0xD800 && uni <= 0xDFFF)
-        return -1;
-    if (uni > 0x10FFFF)
-        return -1;
-    
-    /*
-     * this shouldn't be happened
-    if (uni > 0xFFFF) {
-        uni -= 0x10000;
-        utf16 += (wchar_t)((uni >> 10) + 0xD800);
-        utf16 += (wchar_t)((uni & 0x3FF) + 0xDC00);
-    }
-     */
-    return uni;
+	size_t i = 0;
+	int utf8size = strlen(*c);
+	Uint16 uni = 0;
+	size_t todo;
+	bool error = false;
+	unsigned char ch = (*c)[i++];
+	
+	if (ch <= 0x7F)
+	{
+		uni = ch;
+		todo = 0;
+	}
+	else if (ch <= 0xBF)
+	{
+		return -1;
+	}
+	else if (ch <= 0xDF)
+	{
+		uni = ch & 0x1F;
+		todo = 1;
+	}
+	else if (ch <= 0xEF)
+	{
+		uni = ch & 0x0F;
+		todo = 2;
+	}
+	else if (ch <= 0xF7)
+	{
+		uni = ch & 0x07;
+		todo = 3;
+	}
+	else
+	{
+		return 0;
+	}
+	for (size_t j = 0; j < todo; ++j)
+	{
+		if (i == utf8size)
+			return -1;
+		unsigned char ch = (*c)[i++];
+		if (ch < 0x80 || ch > 0xBF)
+		    return -1;
+		uni <<= 6;
+		uni += ch & 0x3F;
+	}
+	if (uni >= 0xD800 && uni <= 0xDFFF)
+		return -1;
+	if (uni > 0x10FFFF)
+	    return -1;
+	
+	/*
+	 * this shouldn't be happened
+	if (uni > 0xFFFF) {
+		uni -= 0x10000;
+		utf16 += (wchar_t)((uni >> 10) + 0xD800);
+	    utf16 += (wchar_t)((uni & 0x3FF) + 0xDC00);
+	}
+	 */
+	return uni;
 }
 
 void FC_SetLoadingString(FC_Font* font, const char* string)
@@ -1117,68 +1117,68 @@ FC_Font* FC_CreateFont(void)
 
 SDL_Surface* FC_GetSurface(FC_Font* font, const char* source_string)
 {
-    // the first thing we should check if there's glyph in this font
-    // if not, we check for fallback for that glyph.
-    // if there's no fallback, there's nothing we could do. just go on.
-    if (TTF_GlyphIsProvided(font->ttf_source, FC_GetCodepoint16FromUTF8(&source_string)) == 0) {
-        if (font->fallback)
-            return FC_GetSurface(font->fallback, source_string);
-    }
+	// the first thing we should check if there's glyph in this font
+	// if not, we check for fallback for that glyph.
+	// if there's no fallback, there's nothing we could do. just go on.
+	if (TTF_GlyphIsProvided(font->ttf_source, FC_GetCodepoint16FromUTF8(&source_string)) == 0) {
+		if (font->fallback)
+			return FC_GetSurface(font->fallback, source_string);
+	}
 
-    SDL_Surface *glyph_surf, *glyph_surf_outline;
-    // render basic font first
-    // this should NOT have outline
-    TTF_SetFontStyle(font->ttf_source, font->style & ~TTF_STYLE_OUTLINE);
-    TTF_SetFontOutline(font->ttf_source, 0);
-    glyph_surf = TTF_RenderUTF8_Blended(font->ttf_source, source_string, font->default_color);
-    // if original font has thickness
-    // then none_outline also should be rendered
-    if (font->thickness) {
-        TTF_SetFontStyle(font->ttf_source, font->style);
-        TTF_SetFontOutline(font->ttf_source, font->thickness);
-        SDL_Surface *glyph_border = TTF_RenderUTF8_Blended(font->ttf_source, source_string, font->default_color);
-        SDL_Rect src = { 0, 0, glyph_surf->w, glyph_surf->h };
-        SDL_Rect dst = { font->thickness / 2 + 1, font->thickness / 2 + 1, glyph_surf->w, glyph_surf->h };
-        SDL_BlitSurface(glyph_surf, &src, glyph_border, &dst);
-        SDL_FreeSurface(glyph_surf);
-        glyph_surf = glyph_border;
-    }
-    // if font has texture then render texture (texture is repeating)
-    if (font->texture_foreground) {
-        SDL_LockSurface(glyph_surf);
-        Uint32 *p = (Uint32*)glyph_surf->pixels;
-        int tx = 0, ty = 0;
-        for (int x = 0; x < glyph_surf->w; x++) {
-            for (int y = 0; y < glyph_surf->h; y++) {
-                tx = x % font->textureWidth;
-                ty = y % font->textureHeight;
-                p[x + y * glyph_surf->w] =
-                    ((p[x + y * glyph_surf->w] & 0xff000000) | (font->texture_foreground[tx + ty * font->textureWidth] & 0x00ffffff));
-            }
-        }
-        SDL_UnlockSurface(glyph_surf);
-    }
-    // if font has outline then render it also
-    if (font->outline > 0) {
-        int outlinestyle = font->style | TTF_STYLE_OUTLINE;
-        int origoutline = TTF_GetFontOutline(font->ttf_source);
-        TTF_SetFontStyle(font->ttf_source, outlinestyle);
-        TTF_SetFontOutline(font->ttf_source, origoutline + font->outline);
-        glyph_surf_outline = TTF_RenderUTF8_Blended(font->ttf_source, source_string, font->default_outline_color);
-        TTF_SetFontStyle(font->ttf_source, font->style);
-        TTF_SetFontOutline(font->ttf_source, origoutline);
+	SDL_Surface *glyph_surf, *glyph_surf_outline;
+	// render basic font first
+	// this should NOT have outline
+	TTF_SetFontStyle(font->ttf_source, font->style & ~TTF_STYLE_OUTLINE);
+	TTF_SetFontOutline(font->ttf_source, 0);
+	glyph_surf = TTF_RenderUTF8_Blended(font->ttf_source, source_string, font->default_color);
+	// if original font has thickness
+	// then none_outline also should be rendered
+	if (font->thickness) {
+		TTF_SetFontStyle(font->ttf_source, font->style);
+		TTF_SetFontOutline(font->ttf_source, font->thickness);
+		SDL_Surface *glyph_border = TTF_RenderUTF8_Blended(font->ttf_source, source_string, font->default_color);
+		SDL_Rect src = { 0, 0, glyph_surf->w, glyph_surf->h };
+		SDL_Rect dst = { font->thickness / 2 + 1, font->thickness / 2 + 1, glyph_surf->w, glyph_surf->h };
+		SDL_BlitSurface(glyph_surf, &src, glyph_border, &dst);
+		SDL_FreeSurface(glyph_surf);
+		glyph_surf = glyph_border;
+	}
+	// if font has texture then render texture (texture is repeating)
+	if (font->texture_foreground) {
+		SDL_LockSurface(glyph_surf);
+		Uint32 *p = (Uint32*)glyph_surf->pixels;
+		int tx = 0, ty = 0;
+		for (int x = 0; x < glyph_surf->w; x++) {
+			for (int y = 0; y < glyph_surf->h; y++) {
+				tx = x % font->textureWidth;
+				ty = y % font->textureHeight;
+				p[x + y * glyph_surf->w] =
+					((p[x + y * glyph_surf->w] & 0xff000000) | (font->texture_foreground[tx + ty * font->textureWidth] & 0x00ffffff));
+			}
+		}
+		SDL_UnlockSurface(glyph_surf);
+	}
+	// if font has outline then render it also
+	if (font->outline > 0) {
+		int outlinestyle = font->style | TTF_STYLE_OUTLINE;
+		int origoutline = TTF_GetFontOutline(font->ttf_source);
+		TTF_SetFontStyle(font->ttf_source, outlinestyle);
+		TTF_SetFontOutline(font->ttf_source, origoutline + font->outline);
+		glyph_surf_outline = TTF_RenderUTF8_Blended(font->ttf_source, source_string, font->default_outline_color);
+		TTF_SetFontStyle(font->ttf_source, font->style);
+		TTF_SetFontOutline(font->ttf_source, origoutline);
 
 
-        if (glyph_surf_outline) {
-            // copy glyph_surf to outline surface
-            SDL_Rect src = { 0, 0, glyph_surf->w, glyph_surf->h };
-            SDL_Rect dst = { font->outline / 2 + 1, font->outline / 2 + 1, glyph_surf->w, glyph_surf->h };
-            SDL_BlitSurface(glyph_surf, &src, glyph_surf_outline, &dst);
-            SDL_FreeSurface(glyph_surf);
-            glyph_surf = glyph_surf_outline;
-        }
-    }
-    return glyph_surf;
+		if (glyph_surf_outline) {
+			// copy glyph_surf to outline surface
+			SDL_Rect src = { 0, 0, glyph_surf->w, glyph_surf->h };
+			SDL_Rect dst = { font->outline / 2 + 1, font->outline / 2 + 1, glyph_surf->w, glyph_surf->h };
+			SDL_BlitSurface(glyph_surf, &src, glyph_surf_outline, &dst);
+			SDL_FreeSurface(glyph_surf);
+			glyph_surf = glyph_surf_outline;
+		}
+	}
+	return glyph_surf;
 }
 
 // Assume this many will be enough...
@@ -1211,36 +1211,36 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, F
     font->renderer = renderer;
     #endif
 
-    font->ttf_source = ttf;
-    font->default_color = style->color;
-    if (style->texture) {
-        font->texture_foreground = (Uint32*)malloc(sizeof(Uint32) * style->textureWidth * style->textureHeight);
-        memcpy(font->texture_foreground, style->texture, sizeof(Uint32) * style->textureWidth * style->textureHeight);
-        font->textureWidth = style->textureWidth;
-        font->textureHeight = style->textureHeight;
-    }
-    font->outline = style->outline;
-    font->style = style->style;
-    font->thickness = style->thickness;
-    font->fallback = style->fallback;
+	font->ttf_source = ttf;
+	font->default_color = style->color;
+	if (style->texture) {
+		font->texture_foreground = (Uint32*)malloc(sizeof(Uint32) * style->textureWidth * style->textureHeight);
+		memcpy(font->texture_foreground, style->texture, sizeof(Uint32) * style->textureWidth * style->textureHeight);
+		font->textureWidth = style->textureWidth;
+		font->textureHeight = style->textureHeight;
+	}
+	font->outline = style->outline;
+	font->style = style->style;
+	font->thickness = style->thickness;
+	font->fallback = style->fallback;
     
-    /* 
-     * before we get height and other attributes,
-     * set font thickness to get correct font spec
-     */
-    int style_outline;
-    if (style->thickness || style->outline) {
-        style_outline = (style->style | TTF_STYLE_OUTLINE);
-        TTF_SetFontStyle(ttf, style->style);
-        TTF_SetFontOutline(ttf, style->thickness + style->outline);
-    }
-    else {
-        style_outline = (style->style & ~TTF_STYLE_OUTLINE);
-        TTF_SetFontStyle(ttf, 0);
-    }
+	/* 
+	 * before we get height and other attributes,
+	 * set font thickness to get correct font spec
+	 */
+	int style_outline;
+	if (style->thickness || style->outline) {
+		style_outline = (style->style | TTF_STYLE_OUTLINE);
+		TTF_SetFontStyle(ttf, style->style);
+		TTF_SetFontOutline(ttf, style->thickness + style->outline);
+	}
+	else {
+		style_outline = (style->style & ~TTF_STYLE_OUTLINE);
+		TTF_SetFontStyle(ttf, 0);
+	}
 
     //font->line_height = TTF_FontLineSkip(ttf);
-    font->height = TTF_FontHeight(ttf);
+	font->height = TTF_FontHeight(ttf);
     font->ascent = TTF_FontAscent(ttf);
     font->descent = -TTF_FontDescent(ttf);
     
@@ -1271,11 +1271,11 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, F
         for(; *source_string != '\0'; source_string = U8_next(source_string))
         {
             if(!U8_charcpy(buff, source_string, 5))
-                continue;
-            SDL_Surface *glyph_surf = FC_GetSurface(font, buff);
-            if (glyph_surf == NULL) {
-                continue;
-            }
+				continue;
+			SDL_Surface *glyph_surf = FC_GetSurface(font, buff);
+			if (glyph_surf == NULL) {
+				continue;
+			}
             
             // Try packing.  If it fails, create a new surface for the next cache level.
             packed = (FC_PackGlyphData(font, FC_GetCodepointFromUTF8(&buff_ptr, 0), glyph_surf->w, surfaces[num_surfaces-1]->w, surfaces[num_surfaces-1]->h) != NULL);
@@ -1336,15 +1336,15 @@ Uint8 FC_LoadFont(FC_Font* font, const char* filename_ttf, Uint32 pointSize, SDL
 Uint8 FC_LoadFont(FC_Font* font, FC_Target* renderer, const char* filename_ttf, Uint32 pointSize, SDL_Color color, int style)
 #endif
 {
-    FC_Style FCstyle;
-    memset(&FCstyle, 0, sizeof(FC_Style));
-    FCstyle.style = style;
-    FCstyle.fontSize = pointSize;
-    FCstyle.color = color;
+	FC_Style FCstyle;
+	memset(&FCstyle, 0, sizeof(FC_Style));
+	FCstyle.style = style;
+	FCstyle.fontSize = pointSize;
+	FCstyle.color = color;
 #ifdef FC_USE_SDL_GPU
-    return FC_LoadFontFromStyle(font, filename_ttf, &FCstyle);
+	return FC_LoadFontFromStyle(font, filename_ttf, &FCstyle);
 #else
-    return FC_LoadFontFromStyle(font, renderer, filename_ttf, &FCstyle);
+	return FC_LoadFontFromStyle(font, renderer, filename_ttf, &FCstyle);
 #endif
 }
 
@@ -1357,23 +1357,23 @@ Uint8 FC_LoadFontFromStyle(FC_Font* font, const char* filename_ttf, FC_Style* st
 Uint8 FC_LoadFontFromStyle(FC_Font* font, FC_Target* renderer, const char* filename_ttf, FC_Style* style)
 #endif
 {
-    SDL_RWops* rwops;
+	SDL_RWops* rwops;
 
-    if (font == NULL)
-        return 0;
+	if (font == NULL)
+		return 0;
 
-    rwops = SDL_RWFromFile(filename_ttf, "rb");
+	rwops = SDL_RWFromFile(filename_ttf, "rb");
 
-    if (rwops == NULL)
-    {
-        FC_Log("Unable to open file for reading: %s \n", SDL_GetError());
-        return 0;
-    }
+	if (rwops == NULL)
+	{
+		FC_Log("Unable to open file for reading: %s \n", SDL_GetError());
+		return 0;
+	}
 
 #ifdef FC_USE_SDL_GPU
-    return FC_LoadFont_RW(font, rwops, 1, style);
+	return FC_LoadFont_RW(font, rwops, 1, style);
 #else
-    return FC_LoadFont_RW(font, renderer, rwops, 1, style);
+	return FC_LoadFont_RW(font, renderer, rwops, 1, style);
 #endif
 }
 
@@ -1400,7 +1400,7 @@ Uint8 FC_LoadFont_RW(FC_Font* font, FC_Target* renderer, SDL_RWops* file_rwops_t
 
     ttf = TTF_OpenFontRW(file_rwops_ttf, own_rwops, style->fontSize);
 
-    if (ttf == NULL)
+	if (ttf == NULL)
     {
         FC_Log("Unable to load TrueType font: %s \n", TTF_GetError());
         if(own_rwops)
@@ -1410,9 +1410,9 @@ Uint8 FC_LoadFont_RW(FC_Font* font, FC_Target* renderer, SDL_RWops* file_rwops_t
 
 
     #ifdef FC_USE_SDL_GPU
-    result = FC_LoadFontFromTTF(font, ttf, style);
+	result = FC_LoadFontFromTTF(font, ttf, style);
     #else
-    result = FC_LoadFontFromTTF(font, renderer, ttf, style);
+	result = FC_LoadFontFromTTF(font, renderer, ttf, style);
     #endif
     
     // Can only load new (uncached) glyphs if we can keep the SDL_RWops open.
@@ -1470,8 +1470,8 @@ void FC_FreeFont(FC_Font* font)
     // Release resources
     if(font->owns_ttf_source)
         TTF_CloseFont(font->ttf_source);
-    if (font->texture_foreground)
-        free(font->texture_foreground);
+	if (font->texture_foreground)
+		free(font->texture_foreground);
     
     // Delete glyph map
     FC_MapFree(font->glyphs);
@@ -1566,7 +1566,7 @@ Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
         SDL_QueryTexture(cache_image, NULL, NULL, &w, &h);
         #endif
         
-        surf = FC_GetSurface(font, buff); //TTF_RenderUTF8_Blended(font->ttf_source, buff, white);
+		surf = FC_GetSurface(font, buff); //TTF_RenderUTF8_Blended(font->ttf_source, buff, white);
         if(surf == NULL)
         {
             return 0;
@@ -1702,7 +1702,7 @@ FC_Rect FC_Draw(FC_Font* font, FC_Target* dest, float x, float y, const char* fo
     
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
     
-    /* We don't going to reset texture color */
+	/* We don't going to reset texture color */
     //set_color_for_all_caches(font, font->default_color);
     
     return FC_RenderLeft(font, dest, x, y, FC_MakeScale(1,1), fc_buffer);
@@ -2384,8 +2384,8 @@ Uint16 FC_GetWidth(FC_Font* font, const char* formatted_text, ...)
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
 
     const char* c;
-    Uint16 width = 0;
-    Uint16 bigWidth = 0;  // Allows for multi-line strings
+    int width = 0;
+    int bigWidth = 0;  // Allows for multi-line strings
 
     for (c = fc_buffer; *c != '\0'; c++)
     {
@@ -2399,11 +2399,12 @@ Uint16 FC_GetWidth(FC_Font* font, const char* formatted_text, ...)
         FC_GlyphData glyph;
         Uint32 codepoint = FC_GetCodepointFromUTF8(&c, 1);
         if(FC_GetGlyphData(font, &glyph, codepoint) || FC_GetGlyphData(font, &glyph, ' '))
-            width += glyph.rect.w;
+            width += glyph.rect.w + font->letterSpacing;
     }
     bigWidth = bigWidth >= width? bigWidth : width;
+	if (bigWidth < 0) bigWidth = 0;
 
-    return bigWidth;
+	return bigWidth - (*fc_buffer ? font->letterSpacing : 0);
 }
 
 // If width == -1, use no width limit
@@ -2719,11 +2720,17 @@ void FC_SetDefaultColor(FC_Font* font, SDL_Color color)
 }
 
 void FC_SetFallback(FC_Font* font, FC_Font* fallback) {
-    font->fallback = fallback;
+	font->fallback = fallback;
 }
 
+void FC_SetAlphaMod(FC_Font *font, Uint8 a) {
+	for (int i = 0; i < font->glyph_cache_count; i++) {
+		SDL_SetTextureAlphaMod(font->glyph_cache[i], a);
+	}
+}
 
-
-
-
-
+void FC_SetColorMod(FC_Font *font, Uint8 r, Uint8 g, Uint8 b) {
+	for (int i = 0; i < font->glyph_cache_count; i++) {
+		SDL_SetTextureColorMod(font->glyph_cache[i], r, g, b);
+	}
+}
