@@ -1,0 +1,13 @@
+# common
+*.pyc
+*.swp
+
+# vs
+ipch
+*.sdf
+*.opensdf
+Debug
+Release
+
+# dev libs
+lib
