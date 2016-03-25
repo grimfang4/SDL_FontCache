@@ -5,9 +5,9 @@ Dedicated to the memory of Florian Hufsky
 
 License:
     The short:
-    Use it however you'd like, but keep the copyright and license notice 
+    Use it however you'd like, but keep the copyright and license notice
     whenever these files or parts of them are distributed in uncompiled form.
-    
+
     The long:
 Copyright (c) 2015 Jonathan Dearborn
 
@@ -86,7 +86,7 @@ typedef struct FC_Scale
 {
     float x;
     float y;
-    
+
 } FC_Scale;
 
 typedef struct FC_Effect
@@ -94,7 +94,7 @@ typedef struct FC_Effect
     FC_AlignEnum alignment;
     FC_Scale scale;
     SDL_Color color;
-    
+
 } FC_Effect;
 
 // Opaque type
@@ -105,7 +105,7 @@ typedef struct FC_GlyphData
 {
     SDL_Rect rect;
     int cache_level;
-    
+
 } FC_GlyphData;
 
 
@@ -209,6 +209,9 @@ void U8_strdel(char* string, int position);
 
 /*! Sets the string from which to load the initial glyphs.  Use this if you need upfront loading for any reason (such as lack of render-target support). */
 void FC_SetLoadingString(FC_Font* font, const char* string);
+
+/*! Returns the size of the internal buffer which is used for unpacking variadic text data.  This buffer is shared by all FC_Fonts. */
+unsigned int FC_GetBufferSize(void);
 
 /*! Changes the size of the internal buffer which is used for unpacking variadic text data.  This buffer is shared by all FC_Fonts. */
 void FC_SetBufferSize(unsigned int size);
