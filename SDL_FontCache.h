@@ -108,7 +108,24 @@ typedef struct FC_GlyphData
     
 } FC_GlyphData;
 
+/*
+ * Color/Texture setting
+ */
+typedef struct FC_Style
+{
+	// basic
+	Uint32 fontSize;
+	int style;
+	Uint16 outline;
+	SDL_Color color;
+	SDL_Color outline_color;
 
+	// advanced
+	Uint32 *texture;
+	Uint16 textureWidth, textureHeight;
+	FC_Font *fallback;
+	int thickness;
+} FC_Style;
 
 
 // Object creation
@@ -132,15 +149,19 @@ FC_Font* FC_CreateFont(void);
 #ifdef FC_USE_SDL_GPU
 Uint8 FC_LoadFont(FC_Font* font, const char* filename_ttf, Uint32 pointSize, SDL_Color color, int style);
 
-Uint8 FC_LoadFontFromTTF(FC_Font* font, TTF_Font* ttf, SDL_Color color);
+Uint8 FC_LoadFontFromStyle(FC_Font* font, const char* filename_ttf, FC_Style* style);
 
-Uint8 FC_LoadFont_RW(FC_Font* font, SDL_RWops* file_rwops_ttf, Uint8 own_rwops, Uint32 pointSize, SDL_Color color, int style);
+Uint8 FC_LoadFont_RW(FC_Font* font, SDL_RWops* file_rwops_ttf, Uint8 own_rwops, FC_Style* style);
+
+Uint8 FC_LoadFontFromTTF(FC_Font* font, TTF_Font* ttf, TTF_Font *ttf_outline, FC_Style* style);
 #else
 Uint8 FC_LoadFont(FC_Font* font, SDL_Renderer* renderer, const char* filename_ttf, Uint32 pointSize, SDL_Color color, int style);
 
-Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, SDL_Color color);
+Uint8 FC_LoadFontFromStyle(FC_Font* font, SDL_Renderer* renderer, const char* filename_ttf, FC_Style* style);
 
-Uint8 FC_LoadFont_RW(FC_Font* font, SDL_Renderer* renderer, SDL_RWops* file_rwops_ttf, Uint8 own_rwops, Uint32 pointSize, SDL_Color color, int style);
+Uint8 FC_LoadFont_RW(FC_Font* font, SDL_Renderer* renderer, SDL_RWops* file_rwops_ttf, Uint8 own_rwops, FC_Style* style);
+
+Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, FC_Style* style);
 #endif
 
 void FC_ClearFont(FC_Font* font);
@@ -166,6 +187,8 @@ Returns the Uint32 codepoint (not UTF-32) parsed from the given UTF-8 string.
 \param advance_pointer If true, the source pointer will be incremented to skip the extra bytes from multibyte codepoints.
 */
 Uint32 FC_GetCodepointFromUTF8(const char** c, Uint8 advance_pointer);
+
+Uint16 FC_GetCodepoint16FromUTF8(const char** c);
 
 /*!
 Parses the given codepoint and stores the UTF-8 bytes in 'result'.  The result is NULL terminated.
@@ -236,8 +259,11 @@ Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint);
 /*! Sets the glyph data for the given codepoint.  Duplicates are not checked.  Returns a pointer to the stored data. */
 FC_GlyphData* FC_SetGlyphData(FC_Font* font, Uint32 codepoint, FC_GlyphData glyph_data);
 
+FC_GlyphData* FC_SetTextureGlyph(SDL_Texture *texture, SDL_Rect *src, Uint32 codepoint, FC_GlyphData glyph_data);
+
 
 // Rendering
+SDL_Surface* FC_GetSurface(FC_Font* font, const char* source_string);
 
 FC_Rect FC_Draw(FC_Font* font, FC_Target* dest, float x, float y, const char* formatted_text, ...);
 FC_Rect FC_DrawAlign(FC_Font* font, FC_Target* dest, float x, float y, FC_AlignEnum align, const char* formatted_text, ...);
@@ -287,6 +313,9 @@ void FC_SetFilterMode(FC_Font* font, FC_FilterEnum filter);
 void FC_SetSpacing(FC_Font* font, int LetterSpacing);
 void FC_SetLineSpacing(FC_Font* font, int LineSpacing);
 void FC_SetDefaultColor(FC_Font* font, SDL_Color color);
+void FC_SetFallback(FC_Font *font, FC_Font *fallback);
+void FC_SetAlphaMod(FC_Font *font, Uint8 a);
+void FC_SetColorMod(FC_Font *font, Uint8 r, Uint8 g, Uint8 b);
 
 
 #ifdef __cplusplus
