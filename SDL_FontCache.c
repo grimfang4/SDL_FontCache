@@ -540,14 +540,21 @@ const char* U8_next(const char* string)
 int U8_strinsert(char* string, int position, const char* source, int max_bytes)
 {
     int pos_bytes;
-    int len = strlen(string);
-    int add_len = strlen(source);
-    int ulen = U8_strlen(string);
+    int len;
+    int add_len;
+    int ulen;
+    
+    if(string == NULL || source == NULL)
+        return 0;
+    
+    len = strlen(string);
+    add_len = strlen(source);
+    ulen = U8_strlen(string);
     
     if(position == -1)
         position = ulen;
     
-    if(string == NULL || source == NULL || position < 0 || position > ulen || len + add_len + 1 > max_bytes)
+    if(position < 0 || position > ulen || len + add_len + 1 > max_bytes)
         return 0;
     
     // Move string pointer to the proper position
