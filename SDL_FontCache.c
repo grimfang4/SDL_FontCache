@@ -60,13 +60,14 @@ THE SOFTWARE.
 #define FC_MAX(a,b) ((a) > (b)? (a) : (b))
 
 
-// vsnprintf replacement adapted from Valentin Milea:
+// vsnprintf replacement from Valentin Milea:
 // http://stackoverflow.com/questions/2915672/snprintf-and-visual-studio-2010
 #if defined(_MSC_VER) && _MSC_VER < 1900
 
+#define snprintf c99_snprintf
 #define vsnprintf c99_vsnprintf
 
-static int c99_vsnprintf(char *outBuf, size_t size, const char *format, va_list ap)
+__inline int c99_vsnprintf(char *outBuf, size_t size, const char *format, va_list ap)
 {
     int count = -1;
 
@@ -74,6 +75,18 @@ static int c99_vsnprintf(char *outBuf, size_t size, const char *format, va_list 
         count = _vsnprintf_s(outBuf, size, _TRUNCATE, format, ap);
     if (count == -1)
         count = _vscprintf(format, ap);
+
+    return count;
+}
+
+__inline int c99_snprintf(char *outBuf, size_t size, const char *format, ...)
+{
+    int count;
+    va_list ap;
+
+    va_start(ap, format);
+    count = c99_vsnprintf(outBuf, size, format, ap);
+    va_end(ap);
 
     return count;
 }
@@ -941,7 +954,9 @@ static Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* da
         SDL_Renderer* renderer = font->renderer;
 
         // Set filter mode for new texture
-        const char* old_filter_mode = SDL_GetHint(SDL_HINT_RENDER_SCALE_QUALITY);
+        char old_filter_mode[16];  // Save it so we can change the hint value in the meantime
+        snprintf(old_filter_mode, 16, "%s", SDL_GetHint(SDL_HINT_RENDER_SCALE_QUALITY));
+        
         if(FC_GetFilterMode(font) == FC_FILTER_LINEAR)
             SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
         else
@@ -1733,7 +1748,7 @@ static FC_StringList* FC_GetBufferFitToColumn(FC_Font* font, int width, FC_Scale
             {
                 char* line_plus_word = new_concat(line, word_iter->value);
                 char* word_plus_space = new_concat(word_iter->value, " ");
-                if(FC_GetWidth(font, line_plus_word) > width)
+                if(FC_GetWidth(font, "%s", line_plus_word) > width)
                 {
                     current = FC_StringListPushBack(current, line, 0);
 
