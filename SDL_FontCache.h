@@ -233,6 +233,16 @@ FC_Image* FC_GetGlyphCacheLevel(FC_Font* font, int cache_level);
 /*! Sets a cache source texture for rendering.  New cache levels must be sequential. */
 Uint8 FC_SetGlyphCacheLevel(FC_Font* font, int cache_level, FC_Image* cache_texture);
 
+/*! Copies the given surface to the given cache level as a texture.  New cache levels must be sequential. */
+Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* data_surface);
+
+
+/*! Returns the number of codepoints that are stored in the font's glyph data map. */
+unsigned int FC_GetNumCodepoints(FC_Font* font);
+
+/*! Copies the stored codepoints into the given array. */
+void FC_GetCodepoints(FC_Font* font, Uint32* result);
+
 /*! Stores the glyph data for the given codepoint in 'result'.  Returns 0 if the codepoint was not found in the cache. */
 Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint);
 

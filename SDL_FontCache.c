@@ -934,7 +934,7 @@ static Uint8 FC_GrowGlyphCache(FC_Font* font)
     return 1;
 }
 
-static Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* data_surface)
+Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* data_surface)
 {
     if(font == NULL || data_surface == NULL)
         return 0;
@@ -1407,6 +1407,50 @@ Uint8 FC_AddGlyphToCache(FC_Font* font, SDL_Surface* glyph_surface)
     #endif
 
     return 1;
+}
+
+
+unsigned int FC_GetNumCodepoints(FC_Font* font)
+{
+    FC_Map* glyphs;
+    int i;
+    unsigned int result = 0;
+    if(font == NULL || font->glyphs == NULL)
+        return 0;
+    
+    glyphs = font->glyphs;
+    
+    for(i = 0; i < glyphs->num_buckets; ++i)
+    {
+        FC_MapNode* node;
+        for(node = glyphs->buckets[i]; node != NULL; node = node->next)
+        {
+            result++;
+        }
+    }
+    
+    return result;
+}
+
+void FC_GetCodepoints(FC_Font* font, Uint32* result)
+{
+    FC_Map* glyphs;
+    int i;
+    unsigned int count = 0;
+    if(font == NULL || font->glyphs == NULL)
+        return;
+    
+    glyphs = font->glyphs;
+    
+    for(i = 0; i < glyphs->num_buckets; ++i)
+    {
+        FC_MapNode* node;
+        for(node = glyphs->buckets[i]; node != NULL; node = node->next)
+        {
+            result[count] = node->key;
+            count++;
+        }
+    }
 }
 
 Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
