@@ -33,7 +33,7 @@ void draw_rect(FC_Rect rect, SDL_Color color)
 void fill_rect(FC_Rect rect, SDL_Color color)
 {
     #ifdef SDL_GPU_VERSION_MAJOR
-    GPU_RectangleFilled(screen, rect.x, rect.y, rect.x + rect.w - 1, rect.y + rect.h - 1, color);
+    GPU_RectangleFilled(screen, rect.x, rect.y, rect.x + rect.w, rect.y + rect.h, color);
     #else
     SDL_SetRenderDrawBlendMode(renderer, SDL_BLENDMODE_BLEND);
     SDL_SetRenderDrawColor(renderer, color.r, color.g, color.b, color.a);

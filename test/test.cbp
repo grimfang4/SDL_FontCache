@@ -55,6 +55,18 @@
 					<Add directory="../externals/SDL_gpu/lib_windows" />
 				</Linker>
 			</Target>
+			<Target title="Emscripten">
+				<Option output="test" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Emscripten" />
+				<Option type="0" />
+				<Option compiler="emscripten_compiler" />
+				<Compiler>
+					<Add option="`sdl2-config --cflags`" />
+				</Compiler>
+				<Linker>
+					<Add option="`sdl2-config --libs`" />
+				</Linker>
+			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />
