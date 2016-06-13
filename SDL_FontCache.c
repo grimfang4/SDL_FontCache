@@ -578,17 +578,17 @@ int U8_strinsert(char* string, int position, const char* source, int max_bytes)
     int len;
     int add_len;
     int ulen;
-    
+
     if(string == NULL || source == NULL)
         return 0;
-    
+
     len = strlen(string);
     add_len = strlen(source);
     ulen = U8_strlen(string);
-    
+
     if(position == -1)
         position = ulen;
-    
+
     if(position < 0 || position > ulen || len + add_len + 1 > max_bytes)
         return 0;
 
@@ -956,7 +956,7 @@ Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* data_surf
         // Set filter mode for new texture
         char old_filter_mode[16];  // Save it so we can change the hint value in the meantime
         snprintf(old_filter_mode, 16, "%s", SDL_GetHint(SDL_HINT_RENDER_SCALE_QUALITY));
-        
+
         if(FC_GetFilterMode(font) == FC_FILTER_LINEAR)
             SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
         else
@@ -1396,13 +1396,29 @@ Uint8 FC_AddGlyphToCache(FC_Font* font, SDL_Surface* glyph_surface)
     }
     #else
     {
-        SDL_Texture* img = SDL_CreateTextureFromSurface(font->renderer, glyph_surface);
+        SDL_Renderer* renderer = font->renderer;
+        Uint8 use_clip;
+        FC_Rect clip_rect;
+        SDL_Texture* img;
+        SDL_Rect destrect;
 
-        SDL_Rect destrect = font->last_glyph.rect;
-        SDL_SetRenderTarget(font->renderer, dest);
-        SDL_RenderCopy(font->renderer, img, NULL, &destrect);
-        SDL_SetRenderTarget(font->renderer, NULL);
+        use_clip = has_clip(renderer);
+        if(use_clip)
+        {
+            clip_rect = get_clip(renderer);
+            set_clip(renderer, NULL);
+        }
+
+        img = SDL_CreateTextureFromSurface(renderer, glyph_surface);
+
+        destrect = font->last_glyph.rect;
+        SDL_SetRenderTarget(renderer, dest);
+        SDL_RenderCopy(renderer, img, NULL, &destrect);
+        SDL_SetRenderTarget(renderer, NULL);
         SDL_DestroyTexture(img);
+
+        if(use_clip)
+            set_clip(renderer, &clip_rect);
     }
     #endif
 
@@ -1417,9 +1433,9 @@ unsigned int FC_GetNumCodepoints(FC_Font* font)
     unsigned int result = 0;
     if(font == NULL || font->glyphs == NULL)
         return 0;
-    
+
     glyphs = font->glyphs;
-    
+
     for(i = 0; i < glyphs->num_buckets; ++i)
     {
         FC_MapNode* node;
@@ -1428,7 +1444,7 @@ unsigned int FC_GetNumCodepoints(FC_Font* font)
             result++;
         }
     }
-    
+
     return result;
 }
 
@@ -1439,9 +1455,9 @@ void FC_GetCodepoints(FC_Font* font, Uint32* result)
     unsigned int count = 0;
     if(font == NULL || font->glyphs == NULL)
         return;
-    
+
     glyphs = font->glyphs;
-    
+
     for(i = 0; i < glyphs->num_buckets; ++i)
     {
         FC_MapNode* node;
@@ -1456,7 +1472,7 @@ void FC_GetCodepoints(FC_Font* font, Uint32* result)
 Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
 {
     FC_GlyphData* e = FC_MapFind(font->glyphs, codepoint);
-    if(e == NULL || result == NULL)
+    if(e == NULL)
     {
         char buff[5];
         int w, h;
@@ -1475,6 +1491,7 @@ Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
             FC_Log("SDL_FontCache: Failed to load cache image, so cannot add new glyphs!\n");
             return 0;
         }
+
         #ifdef FC_USE_SDL_GPU
         w = cache_image->w;
         h = cache_image->h;
@@ -1520,6 +1537,7 @@ FC_GlyphData* FC_SetGlyphData(FC_Font* font, Uint32 codepoint, FC_GlyphData glyp
 {
     return FC_MapInsert(font->glyphs, codepoint, glyph_data);
 }
+
 
 
 // Drawing
@@ -1853,6 +1871,7 @@ FC_Rect FC_DrawBox(FC_Font* font, FC_Target* dest, FC_Rect box, const char* form
     }
     else
         newclip = box;
+
     set_clip(dest, &newclip);
 
     set_color_for_all_caches(font, font->default_color);
