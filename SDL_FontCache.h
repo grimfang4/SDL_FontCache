@@ -1,5 +1,5 @@
 /*
-SDL_FontCache v0.0.1: A font cache for SDL and SDL_ttf
+SDL_FontCache v0.9.0: A font cache for SDL and SDL_ttf
 by Jonathan Dearborn
 Dedicated to the memory of Florian Hufsky
 
@@ -9,7 +9,7 @@ License:
     whenever these files or parts of them are distributed in uncompiled form.
 
     The long:
-Copyright (c) 2015 Jonathan Dearborn
+Copyright (c) 2016 Jonathan Dearborn
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
