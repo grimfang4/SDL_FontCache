@@ -162,7 +162,7 @@ static unsigned int fc_buffer_size = 1024;
 
 static Uint8 fc_has_render_target_support = 0;
 
-const char* FC_GetStringASCII(void)
+char* FC_GetStringASCII(void)
 {
     static char* buffer = NULL;
     if(buffer == NULL)
@@ -182,10 +182,10 @@ const char* FC_GetStringASCII(void)
             ++c;
         }
     }
-    return buffer;
+    return U8_strdup(buffer);
 }
 
-const char* FC_GetStringLatin1(void)
+char* FC_GetStringLatin1(void)
 {
     static char* buffer = NULL;
     if(buffer == NULL)
@@ -217,16 +217,16 @@ const char* FC_GetStringLatin1(void)
             ++c;
         }
     }
-    return buffer;
+    return U8_strdup(buffer);
 }
 
-const char* FC_GetStringASCII_Latin1(void)
+char* FC_GetStringASCII_Latin1(void)
 {
     static char* buffer = NULL;
     if(buffer == NULL)
         buffer = new_concat(FC_GetStringASCII(), FC_GetStringLatin1());
 
-    return buffer;
+    return U8_strdup(buffer);
 }
 
 FC_Rect FC_MakeRect(float x, float y, float w, float h)
@@ -880,8 +880,8 @@ static void FC_Init(FC_Font* font)
 
     font->glyph_cache = (FC_Image**)malloc(font->glyph_cache_size * sizeof(FC_Image*));
 
-    if(font->loading_string == NULL)
-        font->loading_string = U8_strdup(FC_GetStringASCII());
+	if (font->loading_string == NULL)
+		font->loading_string = FC_GetStringASCII();
 
     if(fc_buffer == NULL)
         fc_buffer = (char*)malloc(fc_buffer_size);

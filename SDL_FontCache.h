@@ -151,11 +151,11 @@ void FC_FreeFont(FC_Font* font);
 
 // Built-in loading strings
 
-const char* FC_GetStringASCII(void);
+char* FC_GetStringASCII(void);
 
-const char* FC_GetStringLatin1(void);
+char* FC_GetStringLatin1(void);
 
-const char* FC_GetStringASCII_Latin1(void);
+char* FC_GetStringASCII_Latin1(void);
 
 
 // UTF-8 to SDL_FontCache codepoint conversion
