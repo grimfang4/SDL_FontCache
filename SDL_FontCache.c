@@ -1639,8 +1639,13 @@ void FC_StringListFree(FC_StringList* node)
 
 FC_StringList** FC_StringListPushBack(FC_StringList** node, char* value, Uint8 copy)
 {
+    if(node == NULL)
+    {
+        return node;
+    }
+    
     // Get to the last node
-    while(node != NULL && *node != NULL)
+    while(*node != NULL)
     {
         node = &(*node)->next;
     }
@@ -2632,9 +2637,3 @@ void FC_SetDefaultColor(FC_Font* font, SDL_Color color)
 
     font->default_color = color;
 }
-
-
-
-
-
-
