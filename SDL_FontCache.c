@@ -2531,6 +2531,34 @@ SDL_Color FC_GetDefaultColor(FC_Font* font)
     return font->default_color;
 }
 
+FC_Rect FC_GetBounds(FC_Font* font, float x, float y, FC_AlignEnum align, FC_Scale scale, const char* formatted_text, ...)
+{
+    FC_Rect result = {x, y, 0, 0};
+    
+    if(formatted_text == NULL)
+        return result;
+    
+    FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
+    
+    result.w = FC_GetWidth(font, "%s", fc_buffer) * scale.x;
+    result.h = FC_GetHeight(font, "%s", fc_buffer) * scale.y;
+    
+    switch(align)
+    {
+        case FC_ALIGN_LEFT:
+            break;
+        case FC_ALIGN_CENTER:
+            result.x -= result.w/2;
+            break;
+        case FC_ALIGN_RIGHT:
+            result.x -= result.w;
+            break;
+        default:
+            break;
+    }
+    
+    return result;
+}
 
 Uint8 FC_InRect(float x, float y, FC_Rect input_rect)
 {
@@ -2585,6 +2613,43 @@ Uint16 FC_GetPositionFromOffset(FC_Font* font, float x, float y, int column_widt
     return position;
 }
 
+int FC_GetWrappedText(FC_Font* font, char* result, int max_result_size, Uint16 width, const char* formatted_text, ...)
+{
+    FC_StringList *ls, *iter;
+
+    if(font == NULL)
+        return 0;
+
+    if(formatted_text == NULL || width == 0)
+        return 0;
+
+    FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
+
+    ls = FC_GetBufferFitToColumn(font, width, FC_MakeScale(1,1), 0);
+    int size_so_far = 0;
+    int size_remaining = max_result_size-1; // reserve for \0
+    for(iter = ls; iter != NULL && size_remaining > 0; iter = iter->next)
+    {
+        // Copy as much of this line as we can
+        int len = strlen(iter->value);
+        int num_bytes = FC_MIN(len, size_remaining);
+        memcpy(&result[size_so_far], iter->value, num_bytes);
+        size_so_far += num_bytes;
+        
+        // If there's another line, add newline character
+        if(size_remaining > 0 && iter->next != NULL)
+        {
+            --size_remaining;
+            result[size_so_far] = '\n';
+            ++size_so_far;
+        }
+    }
+    FC_StringListFree(ls);
+    
+    result[size_so_far] = '\0';
+
+    return size_so_far;
+}
 
 
 
