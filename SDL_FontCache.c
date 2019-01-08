@@ -893,6 +893,7 @@ static Uint8 FC_GrowGlyphCache(FC_Font* font)
         return 0;
     #ifdef FC_USE_SDL_GPU
     GPU_Image* new_level = GPU_CreateImage(font->height * 12, font->height * 12, GPU_FORMAT_RGBA);
+    GPU_SetAnchor(new_level, 0.5f, 0.5f);  // Just in case the default is different
     #else
     SDL_Texture* new_level = SDL_CreateTexture(font->renderer, SDL_PIXELFORMAT_RGBA8888, SDL_TEXTUREACCESS_TARGET, font->height * 12, font->height * 12);
     #endif
@@ -915,6 +916,7 @@ Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* data_surf
         return 0;
     #ifdef FC_USE_SDL_GPU
     GPU_Image* new_level = GPU_CopyImageFromSurface(data_surface);
+    GPU_SetAnchor(new_level, 0.5f, 0.5f);  // Just in case the default is different
     if(FC_GetFilterMode(font) == FC_FILTER_LINEAR)
         GPU_SetImageFilter(new_level, GPU_FILTER_LINEAR);
     else
@@ -1364,6 +1366,7 @@ Uint8 FC_AddGlyphToCache(FC_Font* font, SDL_Surface* glyph_surface)
         if(target == NULL)
             return 0;
         GPU_Image* img = GPU_CopyImageFromSurface(glyph_surface);
+        GPU_SetAnchor(img, 0.5f, 0.5f);  // Just in case the default is different
         GPU_SetImageFilter(img, GPU_FILTER_NEAREST);
         GPU_SetBlendMode(img, GPU_BLEND_SET);
 
