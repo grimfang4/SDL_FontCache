@@ -949,13 +949,13 @@ Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* data_surf
             SDL_Texture* prev_target = SDL_GetRenderTarget(renderer);
             SDL_Rect prev_clip, prev_viewport;
             int prev_logicalw, prev_logicalh;
-            SDL_bool prev_clip_enabled;
+            Uint8 prev_clip_enabled;
             float prev_scalex, prev_scaley;
             // only backup if previous target existed (SDL will preserve them for the default target)
             if (prev_target) {
-                prev_clip_enabled = SDL_RenderIsClipEnabled(renderer);
+                prev_clip_enabled = has_clip(renderer);
                 if (prev_clip_enabled)
-                    SDL_RenderGetClipRect(renderer, &prev_clip);
+                    prev_clip = get_clip(renderer);
                 SDL_RenderGetViewport(renderer, &prev_viewport);
                 SDL_RenderGetScale(renderer, &prev_scalex, &prev_scaley);
                 SDL_RenderGetLogicalSize(renderer, &prev_logicalw, &prev_logicalh);
@@ -972,10 +972,13 @@ Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* data_surf
             SDL_SetRenderTarget(renderer, prev_target);
             if (prev_target) {
                 if (prev_clip_enabled)
-                    SDL_RenderSetClipRect(renderer, &prev_clip);
-                SDL_RenderSetViewport(renderer, &prev_viewport);
-                SDL_RenderSetScale(renderer, prev_scalex, prev_scaley);
-                SDL_RenderSetLogicalSize(renderer, prev_logicalw, prev_logicalh);
+                    set_clip(renderer, &prev_clip);
+                if (prev_logicalw && prev_logicalh)
+                    SDL_RenderSetLogicalSize(renderer, prev_logicalw, prev_logicalh);
+                else {
+                    SDL_RenderSetViewport(renderer, &prev_viewport);
+                    SDL_RenderSetScale(renderer, prev_scalex, prev_scaley);
+                }
             }
 
             SDL_DestroyTexture(temp);
@@ -1402,13 +1405,13 @@ Uint8 FC_AddGlyphToCache(FC_Font* font, SDL_Surface* glyph_surface)
         SDL_Texture* prev_target = SDL_GetRenderTarget(renderer);
         SDL_Rect prev_clip, prev_viewport;
         int prev_logicalw, prev_logicalh;
-        SDL_bool prev_clip_enabled;
+        Uint8 prev_clip_enabled;
         float prev_scalex, prev_scaley;
         // only backup if previous target existed (SDL will preserve them for the default target)
         if (prev_target) {
-            prev_clip_enabled = SDL_RenderIsClipEnabled(renderer);
+            prev_clip_enabled = has_clip(renderer);
             if (prev_clip_enabled)
-                SDL_RenderGetClipRect(renderer, &prev_clip);
+                prev_clip = get_clip(renderer);
             SDL_RenderGetViewport(renderer, &prev_viewport);
             SDL_RenderGetScale(renderer, &prev_scalex, &prev_scaley);
             SDL_RenderGetLogicalSize(renderer, &prev_logicalw, &prev_logicalh);
@@ -1422,10 +1425,13 @@ Uint8 FC_AddGlyphToCache(FC_Font* font, SDL_Surface* glyph_surface)
         SDL_SetRenderTarget(renderer, prev_target);
         if (prev_target) {
             if (prev_clip_enabled)
-                SDL_RenderSetClipRect(renderer, &prev_clip);
-            SDL_RenderSetViewport(renderer, &prev_viewport);
-            SDL_RenderSetScale(renderer, prev_scalex, prev_scaley);
-            SDL_RenderSetLogicalSize(renderer, prev_logicalw, prev_logicalh);
+                set_clip(renderer, &prev_clip);
+            if (prev_logicalw && prev_logicalh)
+                SDL_RenderSetLogicalSize(renderer, prev_logicalw, prev_logicalh);
+            else {
+                SDL_RenderSetViewport(renderer, &prev_viewport);
+                SDL_RenderSetScale(renderer, prev_scalex, prev_scaley);
+            }
         }
 
         SDL_DestroyTexture(img);
