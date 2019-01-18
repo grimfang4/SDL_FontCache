@@ -1306,6 +1306,35 @@ Uint8 FC_LoadFont_RW(FC_Font* font, FC_Target* renderer, SDL_RWops* file_rwops_t
 }
 
 
+#ifndef FC_USE_SDL_GPU
+void FC_ResetFontFromRendererReset(FC_Font* font, SDL_Renderer* renderer, Uint32 evType)
+{
+    TTF_Font* ttf;
+    SDL_Color col;
+    Uint8 owns_ttf;
+    if (font == NULL)
+        return;
+
+    // Destroy glyph cache
+    if (evType == SDL_RENDER_TARGETS_RESET) {
+        int i;
+        for (i = 0; i < font->glyph_cache_count; ++i)
+            SDL_DestroyTexture(font->glyph_cache[i]);
+    }
+    free(font->glyph_cache);
+
+    ttf = font->ttf_source;
+    col = font->default_color;
+    owns_ttf = font->owns_ttf_source;
+    FC_Init(font);
+
+    // Can only reload glyphs if we own the SDL_RWops.
+    if (owns_ttf)
+        FC_LoadFontFromTTF(font, renderer, ttf, col);
+    font->owns_ttf_source = owns_ttf;
+}
+#endif
+
 void FC_ClearFont(FC_Font* font)
 {
     int i;
