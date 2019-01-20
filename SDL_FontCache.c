@@ -1160,10 +1160,10 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
         font->last_glyph.rect.w = 0;
         font->last_glyph.rect.h = font->height;
 
-        memset(buff, 0, 5);
         source_string = font->loading_string;
         for(; *source_string != '\0'; source_string = U8_next(source_string))
         {
+            memset(buff, 0, 5);
             if(!U8_charcpy(buff, source_string, 5))
                 continue;
             glyph_surf = TTF_RenderUTF8_Blended(ttf, buff, white);
