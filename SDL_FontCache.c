@@ -907,6 +907,42 @@ static Uint8 FC_GrowGlyphCache(FC_Font* font)
         #endif
         return 0;
     }
+#ifndef FC_USE_SDL_GPU
+    {
+        Uint8 r, g, b, a;
+        SDL_Texture* prev_target = SDL_GetRenderTarget(font->renderer);
+        SDL_Rect prev_clip, prev_viewport;
+        int prev_logicalw, prev_logicalh;
+        Uint8 prev_clip_enabled;
+        float prev_scalex, prev_scaley;
+        // only backup if previous target existed (SDL will preserve them for the default target)
+        if (prev_target) {
+            prev_clip_enabled = has_clip(font->renderer);
+            if (prev_clip_enabled)
+                prev_clip = get_clip(font->renderer);
+            SDL_RenderGetViewport(font->renderer, &prev_viewport);
+            SDL_RenderGetScale(font->renderer, &prev_scalex, &prev_scaley);
+            SDL_RenderGetLogicalSize(font->renderer, &prev_logicalw, &prev_logicalh);
+        }
+        SDL_SetTextureBlendMode(new_level, SDL_BLENDMODE_BLEND);
+        SDL_SetRenderTarget(font->renderer, new_level);
+        SDL_GetRenderDrawColor(font->renderer, &r, &g, &b, &a);
+        SDL_SetRenderDrawColor(font->renderer, 0, 0, 0, 0);
+        SDL_RenderClear(font->renderer);
+        SDL_SetRenderDrawColor(font->renderer, r, g, b, a);
+        SDL_SetRenderTarget(font->renderer, prev_target);
+        if (prev_target) {
+            if (prev_clip_enabled)
+                set_clip(font->renderer, &prev_clip);
+            if (prev_logicalw && prev_logicalh)
+                SDL_RenderSetLogicalSize(font->renderer, prev_logicalw, prev_logicalh);
+            else {
+                SDL_RenderSetViewport(font->renderer, &prev_viewport);
+                SDL_RenderSetScale(font->renderer, prev_scalex, prev_scaley);
+            }
+        }
+    }
+#endif
     return 1;
 }
 
