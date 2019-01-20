@@ -907,6 +907,10 @@ static Uint8 FC_GrowGlyphCache(FC_Font* font)
         #endif
         return 0;
     }
+    // bug: we do not have the correct color here, this might be the wrong color!
+    //      , most functions use set_color_for_all_caches()
+    //   - for evading this bug, you must use FC_SetDefaultColor(), before using any draw functions
+    set_color(new_level, font->default_color.r, font->default_color.g, font->default_color.b, FC_GET_ALPHA(font->default_color));
 #ifndef FC_USE_SDL_GPU
     {
         Uint8 r, g, b, a;
