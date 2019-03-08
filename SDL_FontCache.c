@@ -549,10 +549,11 @@ const char* U8_next(const char* string)
 
 int U8_strinsert(char* string, int position, const char* source, int max_bytes)
 {
-    int pos_bytes;
+    int pos_u8char;
     int len;
     int add_len;
     int ulen;
+    const char* string_start = string;
 
     if(string == NULL || source == NULL)
         return 0;
@@ -568,15 +569,15 @@ int U8_strinsert(char* string, int position, const char* source, int max_bytes)
         return 0;
 
     // Move string pointer to the proper position
-    pos_bytes = 0;
-    while(*string != '\0' && pos_bytes < position)
+    pos_u8char = 0;
+    while(*string != '\0' && pos_u8char < position)
     {
         string = (char*)U8_next(string);
-        ++pos_bytes;
+        ++pos_u8char;
     }
 
     // Move the rest of the string out of the way
-    memmove(string + add_len, string, len - pos_bytes + 1);
+    memmove(string + add_len, string, len - (string - string_start) + 1);
 
     // Copy in the new characters
     memcpy(string, source, add_len);
