@@ -221,6 +221,12 @@ unsigned int FC_GetBufferSize(void);
 /*! Changes the size of the internal buffer which is used for unpacking variadic text data.  This buffer is shared by all FC_Fonts. */
 void FC_SetBufferSize(unsigned int size);
 
+/*! Returns the width of a single horizontal tab in multiples of the width of a space (default: 4) */
+unsigned int FC_GetTabWidth(void);
+
+/*! Changes the width of a horizontal tab in multiples of the width of a space (default: 4) */
+void FC_SetTabWidth(unsigned int width_in_spaces);
+
 void FC_SetRenderCallback(FC_Rect (*callback)(FC_Image* src, FC_Rect* srcrect, FC_Target* dest, float x, float y, float xscale, float yscale));
 
 FC_Rect FC_DefaultRenderCallback(FC_Image* src, FC_Rect* srcrect, FC_Target* dest, float x, float y, float xscale, float yscale);

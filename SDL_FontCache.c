@@ -153,8 +153,8 @@ static char* replace_concat(char** a, const char* b)
 }
 
 
-
-
+// Width of a tab in units of the space width (sorry, no tab alignment!)
+static unsigned int fc_tab_width = 4;
 
 // Shared buffer for variadic text
 static char* fc_buffer = NULL;
@@ -829,6 +829,17 @@ void FC_SetBufferSize(unsigned int size)
 }
 
 
+unsigned int FC_GetTabWidth(void)
+{
+    return fc_tab_width;
+}
+
+void FC_SetTabWidth(unsigned int width_in_spaces)
+{
+    fc_tab_width = width_in_spaces;
+}
+
+
 
 
 
@@ -1051,6 +1062,14 @@ static FC_GlyphData* FC_PackGlyphData(FC_Font* font, Uint32 codepoint, Uint16 wi
     FC_GlyphData* last_glyph = &font->last_glyph;
     Uint16 height = font->height + FC_CACHE_PADDING;
 
+    // TAB is special!
+    if(codepoint == '\t')
+    {
+        FC_GlyphData spaceGlyph;
+        FC_GetGlyphData(font, &spaceGlyph, ' ');
+        width = fc_tab_width * spaceGlyph.rect.w;
+    }
+
     if(last_glyph->rect.x + last_glyph->rect.w + width >= maxWidth - FC_CACHE_PADDING)
     {
         if(last_glyph->rect.y + height + height >= maxHeight - FC_CACHE_PADDING)
@@ -1171,7 +1190,7 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
     font->height = TTF_FontHeight(ttf);
     font->ascent = TTF_FontAscent(ttf);
     font->descent = -TTF_FontDescent(ttf);
-    
+
     // Some bug for certain fonts can result in an incorrect height.
     if(font->height < font->ascent - font->descent)
         font->height = font->ascent - font->descent;
@@ -1755,9 +1774,9 @@ FC_StringList** FC_StringListPushBack(FC_StringList** node, char* value, Uint8 c
 {
     if(node == NULL)
     {
-        return node;
+        return NULL;
     }
-    
+
     // Get to the last node
     while(*node != NULL)
     {
@@ -1767,6 +1786,29 @@ FC_StringList** FC_StringListPushBack(FC_StringList** node, char* value, Uint8 c
     *node = (FC_StringList*)malloc(sizeof(FC_StringList));
 
     (*node)->value = (copy? U8_strdup(value) : value);
+    (*node)->next = NULL;
+
+    return node;
+}
+
+FC_StringList** FC_StringListPushBackBytes(FC_StringList** node, const char* data, int num_bytes)
+{
+    if(node == NULL)
+    {
+        return node;
+    }
+
+    // Get to the last node
+    while(*node != NULL)
+    {
+        node = &(*node)->next;
+    }
+
+    *node = (FC_StringList*)malloc(sizeof(FC_StringList));
+
+    (*node)->value = (char*)malloc(num_bytes + 1);
+    memcpy((*node)->value, data, num_bytes);
+    (*node)->value[num_bytes] = '\0';
     (*node)->next = NULL;
 
     return node;
@@ -1818,10 +1860,52 @@ static FC_StringList* FC_Explode(const char* text, char delimiter)
     return head;
 }
 
+static FC_StringList* FC_ExplodeBreakingSpace(const char* text, FC_StringList** spaces)
+{
+    FC_StringList* head;
+    FC_StringList** node;
+    const char* start;
+    const char* end;
+    unsigned int size;
+    if(text == NULL)
+        return NULL;
+
+    head = NULL;
+    node = &head;
+
+    // Warning: spaces must not be initialized before this function
+    *spaces = NULL;
+
+    // Doesn't technically support UTF-8, but it's probably fine, right?
+    size = 0;
+    start = end = text;
+    while(1)
+    {
+        // Add any characters here that should make separate words (except for \n?)
+        if(*end == ' ' || *end == '\t' || *end == '\0')
+        {
+            FC_StringListPushBackBytes(node, start, size);
+            FC_StringListPushBackBytes(spaces, end, 1);
+
+            if(*end == '\0')
+                break;
+
+            node = &((*node)->next);
+            start = end+1;
+            size = 0;
+        }
+        else
+            ++size;
+
+        ++end;
+    }
+
+    return head;
+}
+
 static FC_StringList* FC_ExplodeAndKeep(const char* text, char delimiter)
 {
     FC_StringList* head;
-    FC_StringList* new_node;
     FC_StringList** node;
     const char* start;
     const char* end;
@@ -1839,14 +1923,7 @@ static FC_StringList* FC_ExplodeAndKeep(const char* text, char delimiter)
     {
         if(*end == delimiter || *end == '\0')
         {
-            *node = (FC_StringList*)malloc(sizeof(FC_StringList));
-            new_node = *node;
-
-            new_node->value = (char*)malloc(size + 1);
-            memcpy(new_node->value, start, size);
-            new_node->value[size] = '\0';
-
-            new_node->next = NULL;
+            FC_StringListPushBackBytes(node, start, size);
 
             if(*end == '\0')
                 break;
@@ -1895,15 +1972,15 @@ static FC_StringList* FC_GetBufferFitToColumn(FC_Font* font, int width, FC_Scale
         // If line is too long, then add words one at a time until we go over.
         if(width > 0 && FC_GetWidth(font, "%s", line) > width)
         {
-            FC_StringList *words, *word_iter;
+            FC_StringList *words, *word_iter, *spaces, *spaces_iter;
 
-            words = FC_Explode(line, ' ');
+            words = FC_ExplodeBreakingSpace(line, &spaces);
             // Skip the first word for the iterator, so there will always be at least one word per line
-            line = new_concat(words->value, " ");
-            for(word_iter = words->next; word_iter != NULL; word_iter = word_iter->next)
+            line = new_concat(words->value, spaces->value);
+            for(word_iter = words->next, spaces_iter = spaces->next; word_iter != NULL && spaces_iter != NULL; word_iter = word_iter->next, spaces_iter = spaces_iter->next)
             {
                 char* line_plus_word = new_concat(line, word_iter->value);
-                char* word_plus_space = new_concat(word_iter->value, " ");
+                char* word_plus_space = new_concat(word_iter->value, spaces_iter->value);
                 if(FC_GetWidth(font, "%s", line_plus_word) > width)
                 {
                     current = FC_StringListPushBack(current, line, 0);
@@ -1919,6 +1996,7 @@ static FC_StringList* FC_GetBufferFitToColumn(FC_Font* font, int width, FC_Scale
             }
             current = FC_StringListPushBack(current, line, 0);
             FC_StringListFree(words);
+            FC_StringListFree(spaces);
         }
         else
         {
@@ -2644,17 +2722,17 @@ SDL_Color FC_GetDefaultColor(FC_Font* font)
 FC_Rect FC_GetBounds(FC_Font* font, float x, float y, FC_AlignEnum align, FC_Scale scale, const char* formatted_text, ...)
 {
     FC_Rect result = {x, y, 0, 0};
-    
+
     if(formatted_text == NULL)
         return result;
-    
+
     // Create a temp buffer while GetWidth and GetHeight use fc_buffer.
     char* temp = (char*)malloc(fc_buffer_size);
     FC_EXTRACT_VARARGS(temp, formatted_text);
-    
+
     result.w = FC_GetWidth(font, "%s", temp) * scale.x;
     result.h = FC_GetHeight(font, "%s", temp) * scale.y;
-    
+
     switch(align)
     {
         case FC_ALIGN_LEFT:
@@ -2668,9 +2746,9 @@ FC_Rect FC_GetBounds(FC_Font* font, float x, float y, FC_AlignEnum align, FC_Sca
         default:
             break;
     }
-    
+
     free(temp);
-    
+
     return result;
 }
 
@@ -2749,7 +2827,7 @@ int FC_GetWrappedText(FC_Font* font, char* result, int max_result_size, Uint16 w
         int num_bytes = FC_MIN(len, size_remaining);
         memcpy(&result[size_so_far], iter->value, num_bytes);
         size_so_far += num_bytes;
-        
+
         // If there's another line, add newline character
         if(size_remaining > 0 && iter->next != NULL)
         {
@@ -2759,7 +2837,7 @@ int FC_GetWrappedText(FC_Font* font, char* result, int max_result_size, Uint16 w
         }
     }
     FC_StringListFree(ls);
-    
+
     result[size_so_far] = '\0';
 
     return size_so_far;
