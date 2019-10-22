@@ -7,6 +7,7 @@ See SDL_FontCache.h for license info.
 
 #include "SDL_FontCache.h"
 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -446,6 +447,8 @@ struct FC_Font
     FC_Image** glyph_cache;
 
     char* loading_string;
+    // Fallback font - if a codepoint is not found in this font, then search this font
+    FC_Font * fallback;
 
 };
 
@@ -897,6 +900,8 @@ static void FC_Init(FC_Font* font)
 
     if(fc_buffer == NULL)
         fc_buffer = (char*)malloc(fc_buffer_size);
+        
+	font->fallback = NULL;
 }
 
 static Uint8 FC_GrowGlyphCache(FC_Font* font)
@@ -1607,7 +1612,23 @@ Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
         SDL_QueryTexture(cache_image, NULL, NULL, &w, &h);
         #endif
 
-        surf = TTF_RenderUTF8_Blended(font->ttf_source, buff, white);
+		// Find the font in the linked list that has this character
+		FC_Font * working = font;
+//		std::cout << "FC_Font: " << font << "glyphProvided " << TTF_GlyphIsProvided(working->ttf_source, codepoint) << ", glypth: [" << buff << "]" << ", codepoint: [" << (codepoint) << "]"<< std::endl;  
+//		while (working)
+//		{
+//			//if (!FT_Get_Char_Index((FT_Face) working->ttf_source, codepoint))
+//			if (!TTF_GlyphIsProvided(working->ttf_source, codepoint))
+//			{
+//				working = working->fallback;
+//			}
+//			else
+//				break;
+//		}
+//		if (!working)
+//			working = font;
+		
+        surf = TTF_RenderUTF8_Blended(working->ttf_source, buff, white);
         if(surf == NULL)
         {
             return 0;
@@ -2898,3 +2919,14 @@ void FC_SetDefaultColor(FC_Font* font, SDL_Color color)
 
     font->default_color = color;
 }
+
+
+void FC_AddFallbackFont(FC_Font* base, FC_Font* fallback)
+{
+	FC_Font * working = base;
+	if (!working) return;
+	while (working->fallback)
+		working = working->fallback;
+	working->fallback = fallback;
+}
+
