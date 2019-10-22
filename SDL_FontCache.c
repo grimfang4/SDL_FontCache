@@ -1614,14 +1614,11 @@ Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
 
 		// Find the font in the linked list that has this character
 		FC_Font * working = font;
-//		std::cout << "FC_Font: " << font << "glyphProvided " << TTF_GlyphIsProvided(working->ttf_source, codepoint) << ", glypth: [" << buff << "]" << ", codepoint: [" << (codepoint) << "]"<< std::endl;  
+//		std::cout << "FC_Font: " << font << "glyphProvided " << TTF_GlyphIsProvided32(working->ttf_source, codepoint) << ", glypth: [" << buff << "]" << ", codepoint: [" << (codepoint) << "]"<< std::endl;  
 //		while (working)
 //		{
-//			//if (!FT_Get_Char_Index((FT_Face) working->ttf_source, codepoint))
-//			if (!TTF_GlyphIsProvided(working->ttf_source, codepoint))
-//			{
+//			if (!TTF_GlyphIsProvided32(working->ttf_source, codepoint)) // Requires SDL_TTF 2.0.16
 //				working = working->fallback;
-//			}
 //			else
 //				break;
 //		}
