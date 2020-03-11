@@ -984,7 +984,10 @@ Uint8 FC_UploadGlyphCache(FC_Font* font, int cache_level, SDL_Surface* data_surf
 
         // Set filter mode for new texture
         char old_filter_mode[16];  // Save it so we can change the hint value in the meantime
-        snprintf(old_filter_mode, 16, "%s", SDL_GetHint(SDL_HINT_RENDER_SCALE_QUALITY));
+        const char* old_filter_hint = SDL_GetHint(SDL_HINT_RENDER_SCALE_QUALITY);
+        if(!old_filter_hint)
+            old_filter_hint = "nearest";
+        snprintf(old_filter_mode, 16, "%s", old_filter_hint);
 
         if(FC_GetFilterMode(font) == FC_FILTER_LINEAR)
             SDL_SetHint(SDL_HINT_RENDER_SCALE_QUALITY, "1");
