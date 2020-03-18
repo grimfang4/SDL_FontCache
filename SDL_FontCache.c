@@ -1962,6 +1962,7 @@ static void FC_RenderAlign(FC_Font* font, FC_Target* dest, float x, float y, int
 
 static FC_StringList* FC_GetBufferFitToColumn(FC_Font* font, int width, FC_Scale scale, Uint8 keep_newlines)
 {
+    width = (int)(width / scale.x);
     FC_StringList* result = NULL;
     FC_StringList** current = &result;
 
@@ -2021,7 +2022,7 @@ static void FC_DrawColumnFromBuffer(FC_Font* font, FC_Target* dest, FC_Rect box,
     for(iter = ls; iter != NULL; iter = iter->next)
     {
         FC_RenderAlign(font, dest, box.x, y, box.w, scale, align, iter->value);
-        y += FC_GetLineHeight(font);
+        y += FC_GetLineHeight(font)*scale.y;
     }
     FC_StringListFree(ls);
 
