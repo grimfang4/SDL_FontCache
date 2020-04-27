@@ -38,6 +38,9 @@ THE SOFTWARE.
 
 #ifdef FC_USE_SDL_GPU
     #include "SDL_gpu.h"
+    #define FC_COORD float
+#else
+    #define FC_COORD int
 #endif
 
 
@@ -316,7 +319,7 @@ void FC_SetFilterMode(FC_Font* font, FC_FilterEnum filter);
 void FC_SetSpacing(FC_Font* font, int LetterSpacing);
 void FC_SetLineSpacing(FC_Font* font, int LineSpacing);
 void FC_SetDefaultColor(FC_Font* font, SDL_Color color);
-
+void FC_AddFallbackFont(FC_Font* base, FC_Font* fallback);
 
 #ifdef __cplusplus
 }

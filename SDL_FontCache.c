@@ -7,6 +7,7 @@ See SDL_FontCache.h for license info.
 
 #include "SDL_FontCache.h"
 
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -236,7 +237,7 @@ char* FC_GetStringASCII_Latin1(void)
 
 FC_Rect FC_MakeRect(float x, float y, float w, float h)
 {
-    FC_Rect r = {x, y, w, h};
+    FC_Rect r = {(FC_COORD)x, (FC_COORD)y, (FC_COORD)w, (FC_COORD)h};
     return r;
 }
 
@@ -451,6 +452,8 @@ struct FC_Font
     FC_Image** glyph_cache;
 
     char* loading_string;
+    // Fallback font - if a codepoint is not found in this font, then search this font
+    FC_Font * fallback;
 
 };
 
@@ -622,7 +625,7 @@ static_inline FC_Rect FC_RectUnion(FC_Rect A, FC_Rect B)
     x2 = FC_MAX(A.x+A.w, B.x+B.w);
     y2 = FC_MAX(A.y+A.h, B.y+B.h);
     {
-        FC_Rect result = {x, y, FC_MAX(0, x2 - x), FC_MAX(0, y2 - y)};
+        FC_Rect result = {(FC_COORD)x, (FC_COORD)y, FC_MAX(0, (FC_COORD)(x2 - x)), FC_MAX(0, (FC_COORD)(y2 - y))};
         return result;
     }
 }
@@ -691,16 +694,16 @@ FC_Rect FC_DefaultRenderCallback(FC_Image* src, FC_Rect* srcrect, FC_Target* des
         if(xscale < 0)
         {
             xscale = -xscale;
-            flip = (SDL_RendererFlip) ((int)flip | (int)SDL_FLIP_HORIZONTAL);
+            flip = (SDL_RendererFlip) ((FC_COORD)flip | (FC_COORD)SDL_FLIP_HORIZONTAL);
         }
         if(yscale < 0)
         {
             yscale = -yscale;
-            flip = (SDL_RendererFlip) ((int)flip | (int)SDL_FLIP_VERTICAL);
+            flip = (SDL_RendererFlip) ((FC_COORD)flip | (FC_COORD)SDL_FLIP_VERTICAL);
         }
 
         SDL_Rect r = *srcrect;
-        SDL_Rect dr = {(int)x, (int)y, (int)(xscale*r.w), (int)(yscale*r.h)};
+        SDL_Rect dr = {(FC_COORD)x, (FC_COORD)y, (FC_COORD)(xscale*r.w), (FC_COORD)(yscale*r.h)};
         SDL_RenderCopyEx(dest, src, &r, &dr, 0, NULL, flip);
     }
     #endif
@@ -902,6 +905,8 @@ static void FC_Init(FC_Font* font)
 
     if(fc_buffer == NULL)
         fc_buffer = (char*)malloc(fc_buffer_size);
+        
+	font->fallback = NULL;
 }
 
 static Uint8 FC_GrowGlyphCache(FC_Font* font)
@@ -1632,7 +1637,20 @@ Uint8 FC_GetGlyphData(FC_Font* font, FC_GlyphData* result, Uint32 codepoint)
         SDL_QueryTexture(cache_image, NULL, NULL, &w, &h);
         #endif
 
-        surf = TTF_RenderUTF8_Blended(font->ttf_source, buff, white);
+		// Find the font in the linked list that has this character
+		FC_Font * working = font;
+//		std::cout << "FC_Font: " << font << "glyphProvided " << TTF_GlyphIsProvided32(working->ttf_source, codepoint) << ", glypth: [" << buff << "]" << ", codepoint: [" << (codepoint) << "]"<< std::endl;  
+//		while (working)
+//		{
+//			if (!TTF_GlyphIsProvided32(working->ttf_source, codepoint)) // Requires SDL_TTF 2.0.16
+//				working = working->fallback;
+//			else
+//				break;
+//		}
+//		if (!working)
+//			working = font;
+		
+        surf = TTF_RenderUTF8_Blended(working->ttf_source, buff, white);
         if(surf == NULL)
         {
             return 0;
@@ -2209,7 +2227,7 @@ FC_Rect FC_DrawBoxEffect(FC_Font* font, FC_Target* dest, FC_Rect box, FC_Effect 
 
 FC_Rect FC_DrawColumn(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, const char* formatted_text, ...)
 {
-    FC_Rect box = {x, y, width, 0};
+    FC_Rect box = {(FC_COORD)x, (FC_COORD)y, (FC_COORD)width, 0};
     int total_height;
 
     if(formatted_text == NULL || font == NULL)
@@ -2226,7 +2244,7 @@ FC_Rect FC_DrawColumn(FC_Font* font, FC_Target* dest, float x, float y, Uint16 w
 
 FC_Rect FC_DrawColumnAlign(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, FC_AlignEnum align, const char* formatted_text, ...)
 {
-    FC_Rect box = {x, y, width, 0};
+    FC_Rect box = {(FC_COORD)x, (FC_COORD)y, (FC_COORD)width, 0};
     int total_height;
 
     if(formatted_text == NULL || font == NULL)
@@ -2255,7 +2273,7 @@ FC_Rect FC_DrawColumnAlign(FC_Font* font, FC_Target* dest, float x, float y, Uin
 
 FC_Rect FC_DrawColumnScale(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, FC_Scale scale, const char* formatted_text, ...)
 {
-    FC_Rect box = {x, y, width, 0};
+    FC_Rect box = {(FC_COORD)x, (FC_COORD)y, (FC_COORD)width, 0};
     int total_height;
 
     if(formatted_text == NULL || font == NULL)
@@ -2272,7 +2290,7 @@ FC_Rect FC_DrawColumnScale(FC_Font* font, FC_Target* dest, float x, float y, Uin
 
 FC_Rect FC_DrawColumnColor(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, SDL_Color color, const char* formatted_text, ...)
 {
-    FC_Rect box = {x, y, width, 0};
+    FC_Rect box = {(FC_COORD)x, (FC_COORD)y, (FC_COORD)width, 0};
     int total_height;
 
     if(formatted_text == NULL || font == NULL)
@@ -2289,7 +2307,7 @@ FC_Rect FC_DrawColumnColor(FC_Font* font, FC_Target* dest, float x, float y, Uin
 
 FC_Rect FC_DrawColumnEffect(FC_Font* font, FC_Target* dest, float x, float y, Uint16 width, FC_Effect effect, const char* formatted_text, ...)
 {
-    FC_Rect box = {x, y, width, 0};
+    FC_Rect box = {(FC_COORD)x, (FC_COORD)y, (FC_COORD)width, 0};
     int total_height;
 
     if(formatted_text == NULL || font == NULL)
@@ -2318,7 +2336,7 @@ FC_Rect FC_DrawColumnEffect(FC_Font* font, FC_Target* dest, float x, float y, Ui
 
 static FC_Rect FC_RenderCenter(FC_Font* font, FC_Target* dest, float x, float y, FC_Scale scale, const char* text)
 {
-    FC_Rect result = {x, y, 0, 0};
+    FC_Rect result = {(FC_COORD)x, (FC_COORD)y, 0, 0};
     if(text == NULL || font == NULL)
         return result;
 
@@ -2351,7 +2369,7 @@ static FC_Rect FC_RenderCenter(FC_Font* font, FC_Target* dest, float x, float y,
 
 static FC_Rect FC_RenderRight(FC_Font* font, FC_Target* dest, float x, float y, FC_Scale scale, const char* text)
 {
-    FC_Rect result = {x, y, 0, 0};
+    FC_Rect result = {(FC_COORD)x, (FC_COORD)y, 0, 0};
     if(text == NULL || font == NULL)
         return result;
 
@@ -2746,7 +2764,7 @@ SDL_Color FC_GetDefaultColor(FC_Font* font)
 
 FC_Rect FC_GetBounds(FC_Font* font, float x, float y, FC_AlignEnum align, FC_Scale scale, const char* formatted_text, ...)
 {
-    FC_Rect result = {x, y, 0, 0};
+    FC_Rect result = {(FC_COORD)x, (FC_COORD)y, 0, 0};
 
     if(formatted_text == NULL)
         return result;
@@ -2923,3 +2941,14 @@ void FC_SetDefaultColor(FC_Font* font, SDL_Color color)
 
     font->default_color = color;
 }
+
+
+void FC_AddFallbackFont(FC_Font* base, FC_Font* fallback)
+{
+	FC_Font * working = base;
+	if (!working) return;
+	while (working->fallback)
+		working = working->fallback;
+	working->fallback = fallback;
+}
+
