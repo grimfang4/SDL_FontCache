@@ -2043,7 +2043,7 @@ static void FC_DrawColumnFromBuffer(FC_Font* font, FC_Target* dest, FC_Rect box,
     for(iter = ls; iter != NULL; iter = iter->next)
     {
         FC_RenderAlign(font, dest, box.x, y, box.w, scale, align, iter->value);
-        y += FC_GetLineHeight(font);
+        y += FC_GetLineHeight(font) * scale.y;
     }
     FC_StringListFree(ls);
 
