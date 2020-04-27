@@ -2489,7 +2489,7 @@ Uint16 FC_GetLineHeight(FC_Font* font)
 
 Uint16 FC_GetHeight(FC_Font* font, const char* formatted_text, ...)
 {
-    if(formatted_text == NULL || font == NULL)
+    if(formatted_text == NULL || font == NULL || formatted_text[0] == '\0')
         return 0;
 
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
@@ -2509,7 +2509,7 @@ Uint16 FC_GetHeight(FC_Font* font, const char* formatted_text, ...)
 
 Uint16 FC_GetWidth(FC_Font* font, const char* formatted_text, ...)
 {
-    if(formatted_text == NULL || font == NULL)
+    if(formatted_text == NULL || font == NULL || formatted_text[0] == '\0')
         return 0;
 
     FC_EXTRACT_VARARGS(fc_buffer, formatted_text);
