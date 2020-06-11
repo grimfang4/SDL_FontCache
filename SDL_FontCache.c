@@ -1188,7 +1188,7 @@ Uint8 FC_LoadFontFromTTF(FC_Font* font, SDL_Renderer* renderer, TTF_Font* ttf, S
     #else
     SDL_RendererInfo info;
     SDL_GetRendererInfo(renderer, &info);
-    fc_has_render_target_support = (info.flags & SDL_RENDERER_TARGETTEXTURE);
+    fc_has_render_target_support = (info.flags & SDL_RENDERER_SOFTWARE);
 
     font->renderer = renderer;
     #endif
