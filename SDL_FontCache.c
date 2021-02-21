@@ -134,15 +134,16 @@ static void set_color(FC_Image* src, Uint8 r, Uint8 g, Uint8 b, Uint8 a)
 static char* new_concat(const char* a, const char* b)
 {
     // Create new buffer
-    unsigned int size = strlen(a) + strlen(b);
-    char* new_string = (char*)malloc(size+1);
+    unsigned int len_a = strlen(a);
+    char* new_string = (char*)malloc(len_a + strlen(b) + 1);
 
     // Concatenate strings in the new buffer
     strcpy(new_string, a);
-    strcat(new_string, b);
+    strcpy(new_string + len_a, b);
 
     return new_string;
 }
+
 
 static char* replace_concat(char** a, const char* b)
 {
