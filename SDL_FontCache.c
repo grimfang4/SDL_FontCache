@@ -2852,6 +2852,7 @@ int FC_GetWrappedText(FC_Font* font, char* result, int max_result_size, Uint16 w
         int num_bytes = FC_MIN(len, size_remaining);
         memcpy(&result[size_so_far], iter->value, num_bytes);
         size_so_far += num_bytes;
+        size_remaining -= num_bytes;
 
         // If there's another line, add newline character
         if(size_remaining > 0 && iter->next != NULL)
